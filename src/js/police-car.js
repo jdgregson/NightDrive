@@ -1,4 +1,4 @@
-function createPoliceCar(x, y) {
+function createPoliceCar(x, y, followTarget = null) {
     return {
         x: x,
         y: y,
@@ -11,7 +11,8 @@ function createPoliceCar(x, y) {
         friction: 0.95,
         turnSpeed: 0.05,
         vx: 0,
-        vy: 0
+        vy: 0,
+        followTarget: followTarget
     };
 }
 
@@ -244,9 +245,26 @@ function updatePoliceCar(car, otherCar) {
                 
                 car.vx += impulse * nx;
                 car.vy += impulse * ny;
-                otherCar.vx -= impulse * nx;
-                otherCar.vy -= impulse * ny;
-                otherCar.angle += (Math.random() - 0.5) * 0.4;
+                
+                const testVx = otherCar.vx - impulse * nx;
+                const testVy = otherCar.vy - impulse * ny;
+                const testX = otherCar.x + testVx;
+                const testY = otherCar.y + testVy;
+                const origX = otherCar.x;
+                const origY = otherCar.y;
+                otherCar.x = testX;
+                otherCar.y = testY;
+                
+                if (checkCollision(otherCar, null)) {
+                    otherCar.x = origX;
+                    otherCar.y = origY;
+                } else {
+                    otherCar.x = origX;
+                    otherCar.y = origY;
+                    otherCar.vx = testVx;
+                    otherCar.vy = testVy;
+                    otherCar.angle += (Math.random() - 0.5) * 0.4;
+                }
                 
                 car.speed *= 0.5;
                 otherCar.speed *= 0.5;
@@ -273,5 +291,5 @@ function updatePoliceCar(car, otherCar) {
         }
     }
 
-    checkObjectCollision();
+    checkObjectCollision(car);
 }

@@ -1,16 +1,16 @@
 const playerCar = createPoliceCar(0, 0);
 const aiCar = createPoliceCar(-150, 0);
+const aiCar2 = createPoliceCar(150, 150, playerCar);
 const car = playerCar;
+const aiCars = [aiCar, aiCar2];
 
-const AI_FOLLOW = false;
-
-function updateAICar() {
+function updateAICar(aiCar, allCars) {
     const prevX = aiCar.x;
     const prevY = aiCar.y;
     
-    if (AI_FOLLOW) {
-        const dx = playerCar.x - aiCar.x;
-        const dy = playerCar.y - aiCar.y;
+    if (aiCar.followTarget) {
+        const dx = aiCar.followTarget.x - aiCar.x;
+        const dy = aiCar.followTarget.y - aiCar.y;
         const dist = Math.hypot(dx, dy);
         const targetAngle = Math.atan2(dy, dx);
         
@@ -45,71 +45,34 @@ function updateAICar() {
         aiCar.speed *= 0.3;
     }
     
-    if (checkCollision(aiCar, playerCar)) {
-        aiCar.x = prevX;
-        aiCar.y = prevY;
-        
-        const dx2 = aiCar.x - playerCar.x;
-        const dy2 = aiCar.y - playerCar.y;
-        const dist2 = Math.hypot(dx2, dy2);
-        if (dist2 > 0) {
-            const bounceAngle = Math.atan2(dy2, dx2);
-            aiCar.speed = -aiCar.speed * 0.3;
-            aiCar.x += Math.cos(bounceAngle) * 3;
-            aiCar.y += Math.sin(bounceAngle) * 3;
+    for (const otherCar of allCars) {
+        if (otherCar === aiCar) continue;
+        if (checkCollision(aiCar, otherCar)) {
+            aiCar.x = prevX;
+            aiCar.y = prevY;
+            
+            const dx2 = aiCar.x - otherCar.x;
+            const dy2 = aiCar.y - otherCar.y;
+            const dist2 = Math.hypot(dx2, dy2);
+            if (dist2 > 0) {
+                const bounceAngle = Math.atan2(dy2, dx2);
+                aiCar.speed = -aiCar.speed * 0.3;
+                aiCar.x += Math.cos(bounceAngle) * 3;
+                aiCar.y += Math.sin(bounceAngle) * 3;
+            }
+            break;
         }
     }
     
-    const aiSpeed = Math.hypot(aiCar.vx, aiCar.vy);
-    for (const obj of interactiveObjects) {
-        if (obj.hit) continue;
-        const size = obj.type === 'mailbox' ? 20 : 18;
-        const dist = Math.hypot(aiCar.x - obj.x, aiCar.y - obj.y);
-        if (dist < size + 15 && aiSpeed > 0.5) {
-            obj.hit = true;
-            const angle = Math.atan2(obj.y - aiCar.y, obj.x - aiCar.x);
-            if (obj.type === 'mailbox') {
-                for (let i = 0; i < 8; i++) {
-                    const colors = ['#ffffff', '#ff6b6b', '#4ecdc4', '#ffe66d'];
-                    debris.push({
-                        x: obj.x, y: obj.y,
-                        vx: Math.cos(angle + (Math.random() - 0.5) * 1.5) * (aiSpeed * 0.5 + Math.random() * 0.5),
-                        vy: Math.sin(angle + (Math.random() - 0.5) * 1.5) * (aiSpeed * 0.5 + Math.random() * 0.5),
-                        size: 4 + Math.random() * 4,
-                        color: colors[Math.floor(Math.random() * colors.length)],
-                        rotation: Math.random() * Math.PI * 2,
-                        rotSpeed: (Math.random() - 0.5) * 0.3
-                    });
-                }
-            } else {
-                const trashColors = ['#8b4513', '#a0522d', '#cd853f', '#daa520', '#b8860b'];
-                for (let i = 0; i < 12; i++) {
-                    debris.push({
-                        x: obj.x, y: obj.y,
-                        vx: Math.cos(angle + (Math.random() - 0.5) * 2) * (aiSpeed * 0.6 + Math.random() * 0.8),
-                        vy: Math.sin(angle + (Math.random() - 0.5) * 2) * (aiSpeed * 0.6 + Math.random() * 0.8),
-                        size: 3 + Math.random() * 5,
-                        color: trashColors[Math.floor(Math.random() * trashColors.length)],
-                        rotation: Math.random() * Math.PI * 2,
-                        rotSpeed: (Math.random() - 0.5) * 0.4
-                    });
-                }
-                debris.push({
-                    x: obj.x, y: obj.y,
-                    vx: Math.cos(angle) * aiSpeed * 0.8,
-                    vy: Math.sin(angle) * aiSpeed * 0.8,
-                    size: 18, color: obj.color, shape: obj.shape,
-                    rotation: 0, rotSpeed: (Math.random() - 0.5) * 0.2,
-                    isContainer: true
-                });
-            }
-        }
-    }
+    checkObjectCollision(aiCar);
 }
 
 function update() {
+    const allCars = [playerCar, ...aiCars];
     updatePoliceCar(playerCar, aiCar);
-    updateAICar();
+    for (const ai of aiCars) {
+        updateAICar(ai, allCars);
+    }
 
     for (const d of debris) {
         d.x += d.vx;

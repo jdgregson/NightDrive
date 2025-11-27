@@ -82,18 +82,27 @@ function checkCollision(carObj, otherCar) {
     return false;
 }
 
-function checkObjectCollision() {
-    const carSpeed = Math.abs(car.speed);
+function checkObjectCollision(carObj) {
+    const carSpeed = Math.hypot(carObj.vx, carObj.vy) || Math.abs(carObj.speed);
+    const corners = getCarCorners(carObj, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
 
     for (const obj of interactiveObjects) {
         if (obj.hit) continue;
 
         const size = obj.type === 'mailbox' ? 20 : 18;
-        const dist = Math.hypot(car.x - obj.x, car.y - obj.y);
+        let hit = false;
+        
+        for (const corner of corners) {
+            const dist = Math.hypot(corner.x - obj.x, corner.y - obj.y);
+            if (dist < size) {
+                hit = true;
+                break;
+            }
+        }
 
-        if (dist < size + 15 && carSpeed > 0.5) {
+        if (hit && carSpeed > 0.5) {
             obj.hit = true;
-            const angle = Math.atan2(obj.y - car.y, obj.x - car.x);
+            const angle = Math.atan2(obj.y - carObj.y, obj.x - carObj.x);
             const force = carSpeed * 2;
 
             if (obj.type === 'mailbox') {
