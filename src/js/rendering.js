@@ -37,7 +37,8 @@ function draw() {
     };
 
     const lightAngle = car.angle;
-    const spread = Math.PI / 3;
+    const spread = Math.PI / 4;
+    const leftAngle = lightAngle + Math.PI / 24;
 
     const allCars = [playerCar, ...aiCars, regularCar];
 
@@ -74,7 +75,7 @@ function draw() {
     ctx.closePath();
     ctx.fill();
 
-    const leftCone = castLightCone(leftLight, lightAngle, spread, 500, false, allCars.filter(c => c !== playerCar));
+    const leftCone = castLightCone(leftLight, leftAngle, spread, 500, false, allCars.filter(c => c !== playerCar));
     const rightCone = castLightCone(rightLight, lightAngle, spread, 500, false, allCars.filter(c => c !== playerCar));
 
     const aiCones = [];
@@ -89,7 +90,8 @@ function draw() {
             y: ai.y + Math.sin(ai.angle) * aiHeadlightOffset - Math.cos(ai.angle) * 10
         };
         const aiLightAngle = ai.angle;
-        const aiLeftCone = castLightCone(aiLeftLight, aiLightAngle, spread, 500, false, allCars.filter(c => c !== ai));
+        const aiLeftAngle = aiLightAngle + Math.PI / 24;
+        const aiLeftCone = castLightCone(aiLeftLight, aiLeftAngle, spread, 500, false, allCars.filter(c => c !== ai));
         const aiRightCone = castLightCone(aiRightLight, aiLightAngle, spread, 500, false, allCars.filter(c => c !== ai));
         aiCones.push({ leftCone: aiLeftCone, rightCone: aiRightCone, leftLight: aiLeftLight, rightLight: aiRightLight, angle: aiLightAngle });
     }
@@ -102,7 +104,8 @@ function draw() {
         x: regularCar.x + Math.cos(regularCar.angle) * headlightOffset + Math.sin(regularCar.angle) * 10,
         y: regularCar.y + Math.sin(regularCar.angle) * headlightOffset - Math.cos(regularCar.angle) * 10
     };
-    const regularLeftCone = castLightCone(regularLeftLight, regularCar.angle, spread, 500, false, allCars.filter(c => c !== regularCar));
+    const regularLeftAngle = regularCar.angle + Math.PI / 24;
+    const regularLeftCone = castLightCone(regularLeftLight, regularLeftAngle, spread, 500, false, allCars.filter(c => c !== regularCar));
     const regularRightCone = castLightCone(regularRightLight, regularCar.angle, spread, 500, false, allCars.filter(c => c !== regularCar));
     aiCones.push({ leftCone: regularLeftCone, rightCone: regularRightCone, leftLight: regularLeftLight, rightLight: regularRightLight, angle: regularCar.angle });
 
@@ -145,8 +148,8 @@ function draw() {
     }
 
     if (headlightsOn) {
-        const wideSpread = brightsOn ? Math.PI / 1.5 : Math.PI / 2.5;
-        const leftWide = castLightCone(leftLight, lightAngle, wideSpread, 500, false, allCars.filter(c => c !== playerCar));
+        const wideSpread = brightsOn ? Math.PI / 2 : Math.PI / 3;
+        const leftWide = castLightCone(leftLight, leftAngle, wideSpread, 500, false, allCars.filter(c => c !== playerCar));
         const rightWide = castLightCone(rightLight, lightAngle, wideSpread, 500, false, allCars.filter(c => c !== playerCar));
 
         const blurAmount = brightsOn ? 'blur(8px)' : 'blur(5px)';
