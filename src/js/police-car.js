@@ -54,8 +54,11 @@ function drawPoliceCar(car, lightsEnabled = true) {
         y: car.y + sin * (car.height / 2 - 33) - cos * (car.width / 4 - 1)
     };
 
+    let redCone = null;
+    let blueCone = null;
+
     if (redOn) {
-        const redCone = castLightCone(redLightPos, 0, Math.PI * 2, 100, false, []);
+        redCone = castLightCone(redLightPos, 0, Math.PI * 2, 100, false, []);
         ctx.filter = 'blur(15px)';
         ctx.fillStyle = 'rgba(255, 0, 0, 0.08)';
         ctx.beginPath();
@@ -78,7 +81,7 @@ function drawPoliceCar(car, lightsEnabled = true) {
     }
 
     if (blueOn) {
-        const blueCone = castLightCone(blueLightPos, 0, Math.PI * 2, 100, false, []);
+        blueCone = castLightCone(blueLightPos, 0, Math.PI * 2, 100, false, []);
         ctx.filter = 'blur(15px)';
         ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
         ctx.beginPath();
@@ -131,7 +134,7 @@ function drawPoliceCar(car, lightsEnabled = true) {
 
         const isBraking = car.speed > 0.1 && car.prevSpeed - car.speed > 0.01;
         const isReversing = car.speed < -0.1;
-        
+
         let leftBrightness = redOn ? 0.9 : 0.3;
         let rightBrightness = blueOn ? 0.9 : 0.3;
         if (isBraking) {
@@ -213,14 +216,52 @@ function drawPoliceCar(car, lightsEnabled = true) {
     ctx.fillStyle = blueOn ? '#b2c2ffff' : '#000033';
     ctx.fillRect(-car.width / 2 + 2, car.height / 2 - 36, car.width / 2 - 2, 6);
     ctx.restore();
+
+    if (redCone && redCone.hitPoints.length > 0) {
+        for (let i = 0; i < redCone.hitPoints.length - 1; i++) {
+            const p1 = redCone.hitPoints[i];
+            const p2 = redCone.hitPoints[i + 1];
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            if (dist < 100) {
+                const distFromLight = Math.hypot(p1.x - redLightPos.x, p1.y - redLightPos.y);
+                const fade = Math.max(0.1, 1 - distFromLight / 500);
+                const width = 1.9 * fade + 0.1;
+                ctx.strokeStyle = `rgba(255, 0, 0, ${fade})`;
+                ctx.lineWidth = width;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
+    }
+
+    if (blueCone && blueCone.hitPoints.length > 0) {
+        for (let i = 0; i < blueCone.hitPoints.length - 1; i++) {
+            const p1 = blueCone.hitPoints[i];
+            const p2 = blueCone.hitPoints[i + 1];
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            if (dist < 100) {
+                const distFromLight = Math.hypot(p1.x - blueLightPos.x, p1.y - blueLightPos.y);
+                const fade = Math.max(0.1, 1 - distFromLight / 500);
+                const width = 1.9 * fade + 0.1;
+                ctx.strokeStyle = `rgba(0, 150, 255, ${fade})`;
+                ctx.lineWidth = width;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
+    }
 }
 
 function updatePoliceCar(car, otherCar) {
     const prevX = car.x;
     const prevY = car.y;
-    
+
     car.prevSpeed = car.speed;
-    
+
     const boostMultiplier = keys['shift'] ? 2.5 : 1;
 
     if (keys['w']) {
