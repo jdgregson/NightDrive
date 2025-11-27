@@ -1,5 +1,9 @@
 function draw() {
+    profiler.start('draw_total');
+    
+    profiler.start('draw_terrain');
     drawTerrain();
+    profiler.end('draw_terrain');
 
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
@@ -41,8 +45,10 @@ function draw() {
 
     const allCars = [playerCar, ...aiCars, regularCar];
 
+    profiler.start('lighting_street');
     const streetLightPos = { x: streetLight.x, y: streetLight.y - streetLight.poleHeight };
-    const streetLightCone = castLightCone(streetLightPos, 0, Math.PI * 2, 500, true, allCars);
+    const streetLightCone = castLightCone(streetLightPos, 0, Math.PI * 2, 80, true, allCars);
+    profiler.end('lighting_street');
 
     ctx.filter = 'blur(20px)';
     ctx.fillStyle = 'rgba(255, 240, 200, 0.06)';
@@ -74,9 +80,12 @@ function draw() {
     ctx.closePath();
     ctx.fill();
 
-    const leftCone = castLightCone(leftLight, leftAngle, spread, 500, false, allCars.filter(c => c !== playerCar));
-    const rightCone = castLightCone(rightLight, lightAngle, spread, 500, false, allCars.filter(c => c !== playerCar));
+    profiler.start('lighting_player');
+    const leftCone = castLightCone(leftLight, leftAngle, spread, 120, false, allCars.filter(c => c !== playerCar));
+    const rightCone = castLightCone(rightLight, lightAngle, spread, 120, false, allCars.filter(c => c !== playerCar));
+    profiler.end('lighting_player');
 
+    profiler.start('lighting_ai');
     const aiCones = [];
     for (const ai of aiCars) {
         const aiHeadlightOffset = 35;
@@ -90,10 +99,11 @@ function draw() {
         };
         const aiLightAngle = ai.angle;
         const aiLeftAngle = aiLightAngle + Math.PI / 24;
-        const aiLeftCone = castLightCone(aiLeftLight, aiLeftAngle, spread, 500, false, allCars.filter(c => c !== ai));
-        const aiRightCone = castLightCone(aiRightLight, aiLightAngle, spread, 500, false, allCars.filter(c => c !== ai));
+        const aiLeftCone = castLightCone(aiLeftLight, aiLeftAngle, spread, 80, false, allCars.filter(c => c !== ai));
+        const aiRightCone = castLightCone(aiRightLight, aiLightAngle, spread, 80, false, allCars.filter(c => c !== ai));
         aiCones.push({ leftCone: aiLeftCone, rightCone: aiRightCone, leftLight: aiLeftLight, rightLight: aiRightLight, angle: aiLightAngle });
     }
+    profiler.end('lighting_ai');
 
     const regularLeftLight = {
         x: regularCar.x + Math.cos(regularCar.angle) * headlightOffset - Math.sin(regularCar.angle) * 10,
@@ -104,12 +114,13 @@ function draw() {
         y: regularCar.y + Math.sin(regularCar.angle) * headlightOffset - Math.cos(regularCar.angle) * 10
     };
     const regularLeftAngle = regularCar.angle + Math.PI / 24;
-    const regularLeftCone = castLightCone(regularLeftLight, regularLeftAngle, spread, 500, false, allCars.filter(c => c !== regularCar));
-    const regularRightCone = castLightCone(regularRightLight, regularCar.angle, spread, 500, false, allCars.filter(c => c !== regularCar));
+    const regularLeftCone = castLightCone(regularLeftLight, regularLeftAngle, spread, 80, false, allCars.filter(c => c !== regularCar));
+    const regularRightCone = castLightCone(regularRightLight, regularCar.angle, spread, 80, false, allCars.filter(c => c !== regularCar));
     aiCones.push({ leftCone: regularLeftCone, rightCone: regularRightCone, leftLight: regularLeftLight, rightLight: regularRightLight, angle: regularCar.angle });
+    profiler.end('lighting_ai');
 
     for (const aiData of aiCones) {
-        ctx.filter = 'blur(5px)';
+        ctx.filter = 'blur(8px)';
         ctx.fillStyle = 'rgba(255, 255, 200, 0.05)';
         ctx.beginPath();
         ctx.moveTo(aiData.leftCone.points[0].x, aiData.leftCone.points[0].y);
@@ -148,10 +159,10 @@ function draw() {
 
     if (headlightsOn) {
         const wideSpread = brightsOn ? Math.PI / 2 : Math.PI / 3;
-        const leftWide = castLightCone(leftLight, leftAngle, wideSpread, 500, false, allCars.filter(c => c !== playerCar));
-        const rightWide = castLightCone(rightLight, lightAngle, wideSpread, 500, false, allCars.filter(c => c !== playerCar));
+        const leftWide = castLightCone(leftLight, leftAngle, wideSpread, 120, false, allCars.filter(c => c !== playerCar));
+        const rightWide = castLightCone(rightLight, lightAngle, wideSpread, 120, false, allCars.filter(c => c !== playerCar));
 
-        const blurAmount = brightsOn ? 'blur(8px)' : 'blur(5px)';
+        const blurAmount = brightsOn ? 'blur(15px)' : 'blur(10px)';
         const wideAlpha = brightsOn ? 0.08 : 0.05;
         const coneAlpha = brightsOn ? 0.2 : 0.12;
         const innerAlpha = brightsOn ? 0.15 : 0.09;
@@ -229,7 +240,7 @@ function draw() {
             y: car.y + sin * 10 - cos * (car.width / 2 + 5)
         };
         const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
-        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 300, false, allCars.filter(c => c !== playerCar));
+        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 50, false, allCars.filter(c => c !== playerCar));
 
         ctx.filter = 'blur(15px)';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
@@ -344,7 +355,7 @@ function draw() {
             y: car.y + sin * 10 - cos * (car.width / 2 + 5)
         };
         const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
-        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 300, false, allCars.filter(c => c !== playerCar));
+        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 50, false, allCars.filter(c => c !== playerCar));
 
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.lineWidth = 0.3;
@@ -368,5 +379,15 @@ function draw() {
 
     ctx.restore();
     
+    profiler.start('draw_minimap');
     drawMinimap();
+    profiler.end('draw_minimap');
+    
+    profiler.end('draw_total');
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(10, 10, 60, 20);
+    ctx.fillStyle = '#00ff00';
+    ctx.font = '12px monospace';
+    ctx.fillText(`FPS: ${profiler.fpsDisplay}`, 15, 24);
 }

@@ -1,4 +1,5 @@
 function getAllEdges(cars = []) {
+    profiler.start('getAllEdges');
     const edges = [];
     const buffer = 600;
     const minX = camera.x - buffer;
@@ -45,6 +46,7 @@ function getAllEdges(cars = []) {
             [corners[3], corners[0]]
         );
     }
+    profiler.end('getAllEdges');
     return edges;
 }
 
@@ -82,6 +84,7 @@ function raycast(origin, angle, maxDist = 1000, isStreetLight = false, cars = []
 }
 
 function castLightCone(origin, angle, spread, rays = 500, isStreetLight = false, cars = []) {
+    profiler.start('castLightCone');
     const points = [origin];
     const hitPoints = [];
 
@@ -95,6 +98,7 @@ function castLightCone(origin, angle, spread, rays = 500, isStreetLight = false,
         if (hit) hitPoints.push(hit);
     }
 
+    profiler.end('castLightCone');
     return { points, hitPoints };
 }
 

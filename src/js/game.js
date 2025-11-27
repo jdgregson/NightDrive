@@ -71,13 +71,18 @@ function updateAICar(aiCar, allCars) {
 }
 
 function update() {
+    profiler.start('update_total');
+    
+    profiler.start('update_cars');
     const allCars = [playerCar, ...aiCars];
     updatePoliceCar(playerCar, aiCar);
     for (const ai of aiCars) {
         updateAICar(ai, allCars);
     }
     updateAICar(regularCar, allCars);
+    profiler.end('update_cars');
 
+    profiler.start('update_debris');
     for (const d of debris) {
         d.x += d.vx;
         d.y += d.vy;
@@ -86,14 +91,18 @@ function update() {
         d.rotation += d.rotSpeed;
         d.rotSpeed *= 0.99;
     }
+    profiler.end('update_debris');
 
     camera.x = car.x - canvas.width / 2;
     camera.y = car.y - canvas.height / 2;
+    
+    profiler.end('update_total');
 }
 
 function gameLoop() {
     update();
     draw();
+    profiler.frame();
     requestAnimationFrame(gameLoop);
 }
 

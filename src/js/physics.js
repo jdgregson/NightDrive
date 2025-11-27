@@ -64,6 +64,7 @@ function checkCarToCarCollision(car1, car2) {
 }
 
 function checkCollision(carObj, otherCar) {
+    profiler.start('collision_check');
     const corners = getCarCorners(carObj, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
     const buffer = 500;
     const edgeBuffer = 3;
@@ -87,9 +88,11 @@ function checkCollision(carObj, otherCar) {
     }
 
     if (otherCar && checkCarToCarCollision(carObj, otherCar)) {
+        profiler.end('collision_check');
         return true;
     }
 
+    profiler.end('collision_check');
     return false;
 }
 
