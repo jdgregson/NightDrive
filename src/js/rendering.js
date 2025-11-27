@@ -92,45 +92,45 @@ function draw() {
         aiCones.push({ leftCone: aiLeftCone, rightCone: aiRightCone, leftLight: aiLeftLight, rightLight: aiRightLight, angle: aiLightAngle });
     }
 
-    if (headlightsOn) {
-        for (const aiData of aiCones) {
-            ctx.filter = 'blur(5px)';
-            ctx.fillStyle = 'rgba(255, 255, 200, 0.05)';
-            ctx.beginPath();
-            ctx.moveTo(aiData.leftCone.points[0].x, aiData.leftCone.points[0].y);
-            for (let i = 1; i < aiData.leftCone.points.length; i++) {
-                ctx.lineTo(aiData.leftCone.points[i].x, aiData.leftCone.points[i].y);
-            }
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.moveTo(aiData.rightCone.points[0].x, aiData.rightCone.points[0].y);
-            for (let i = 1; i < aiData.rightCone.points.length; i++) {
-                ctx.lineTo(aiData.rightCone.points[i].x, aiData.rightCone.points[i].y);
-            }
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.filter = 'none';
-            ctx.fillStyle = 'rgba(255, 255, 200, 0.12)';
-            ctx.beginPath();
-            ctx.moveTo(aiData.leftCone.points[0].x, aiData.leftCone.points[0].y);
-            for (let i = 1; i < aiData.leftCone.points.length; i++) {
-                ctx.lineTo(aiData.leftCone.points[i].x, aiData.leftCone.points[i].y);
-            }
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.moveTo(aiData.rightCone.points[0].x, aiData.rightCone.points[0].y);
-            for (let i = 1; i < aiData.rightCone.points.length; i++) {
-                ctx.lineTo(aiData.rightCone.points[i].x, aiData.rightCone.points[i].y);
-            }
-            ctx.closePath();
-            ctx.fill();
+    for (const aiData of aiCones) {
+        ctx.filter = 'blur(5px)';
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.05)';
+        ctx.beginPath();
+        ctx.moveTo(aiData.leftCone.points[0].x, aiData.leftCone.points[0].y);
+        for (let i = 1; i < aiData.leftCone.points.length; i++) {
+            ctx.lineTo(aiData.leftCone.points[i].x, aiData.leftCone.points[i].y);
         }
+        ctx.closePath();
+        ctx.fill();
 
+        ctx.beginPath();
+        ctx.moveTo(aiData.rightCone.points[0].x, aiData.rightCone.points[0].y);
+        for (let i = 1; i < aiData.rightCone.points.length; i++) {
+            ctx.lineTo(aiData.rightCone.points[i].x, aiData.rightCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.filter = 'none';
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.12)';
+        ctx.beginPath();
+        ctx.moveTo(aiData.leftCone.points[0].x, aiData.leftCone.points[0].y);
+        for (let i = 1; i < aiData.leftCone.points.length; i++) {
+            ctx.lineTo(aiData.leftCone.points[i].x, aiData.leftCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(aiData.rightCone.points[0].x, aiData.rightCone.points[0].y);
+        for (let i = 1; i < aiData.rightCone.points.length; i++) {
+            ctx.lineTo(aiData.rightCone.points[i].x, aiData.rightCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    if (headlightsOn) {
         const wideSpread = brightsOn ? Math.PI / 1.5 : Math.PI / 2.5;
         const leftWide = castLightCone(leftLight, lightAngle, wideSpread);
         const rightWide = castLightCone(rightLight, lightAngle, wideSpread);
@@ -198,9 +198,9 @@ function draw() {
     ctx.globalCompositeOperation = 'source-over';
 
     for (const ai of aiCars) {
-        drawPoliceCar(ai);
+        drawPoliceCar(ai, true);
     }
-    drawPoliceCar(playerCar);
+    drawPoliceCar(playerCar, headlightsOn);
 
     const cos = Math.cos(car.angle);
     const sin = Math.sin(car.angle);
@@ -266,10 +266,36 @@ function draw() {
 
     ctx.globalCompositeOperation = 'lighter';
     
-    if (headlightsOn) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 2;
 
+    for (const aiData of aiCones) {
+            for (let i = 0; i < aiData.leftCone.hitPoints.length - 1; i++) {
+                const p1 = aiData.leftCone.hitPoints[i];
+                const p2 = aiData.leftCone.hitPoints[i + 1];
+                const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                if (dist < 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+
+        for (let i = 0; i < aiData.rightCone.hitPoints.length - 1; i++) {
+            const p1 = aiData.rightCone.hitPoints[i];
+            const p2 = aiData.rightCone.hitPoints[i + 1];
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            if (dist < 20) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
+    }
+
+    if (headlightsOn) {
         for (let i = 0; i < leftCone.hitPoints.length - 1; i++) {
             const p1 = leftCone.hitPoints[i];
             const p2 = leftCone.hitPoints[i + 1];
@@ -291,32 +317,6 @@ function draw() {
                 ctx.moveTo(p1.x, p1.y);
                 ctx.lineTo(p2.x, p2.y);
                 ctx.stroke();
-            }
-        }
-
-        for (const aiData of aiCones) {
-            for (let i = 0; i < aiData.leftCone.hitPoints.length - 1; i++) {
-                const p1 = aiData.leftCone.hitPoints[i];
-                const p2 = aiData.leftCone.hitPoints[i + 1];
-                const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-                if (dist < 20) {
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-                }
-            }
-
-            for (let i = 0; i < aiData.rightCone.hitPoints.length - 1; i++) {
-                const p1 = aiData.rightCone.hitPoints[i];
-                const p2 = aiData.rightCone.hitPoints[i + 1];
-                const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-                if (dist < 20) {
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-                }
             }
         }
     }

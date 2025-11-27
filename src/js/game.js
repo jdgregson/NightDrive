@@ -8,6 +8,8 @@ function updateAICar(aiCar, allCars) {
     const prevX = aiCar.x;
     const prevY = aiCar.y;
     
+    aiCar.prevSpeed = aiCar.speed;
+    
     if (aiCar.followTarget) {
         const dx = aiCar.followTarget.x - aiCar.x;
         const dy = aiCar.followTarget.y - aiCar.y;
