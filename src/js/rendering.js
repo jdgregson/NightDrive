@@ -214,9 +214,9 @@ function draw() {
     ctx.globalCompositeOperation = 'source-over';
 
     for (const ai of aiCars) {
-        drawPoliceCar(ai, true);
+        drawPoliceCar(ai, true, allCars);
     }
-    drawPoliceCar(playerCar, headlightsOn);
+    drawPoliceCar(playerCar, headlightsOn, allCars);
     drawRegularCar(regularCar);
 
     const cos = Math.cos(car.angle);

@@ -18,7 +18,7 @@ function createPoliceCar(x, y, followTarget = null) {
     };
 }
 
-function drawPoliceCar(car, lightsEnabled = true) {
+function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
     ctx.save();
     ctx.translate(car.x, car.y);
     ctx.rotate(car.angle - Math.PI / 2);
@@ -58,7 +58,7 @@ function drawPoliceCar(car, lightsEnabled = true) {
     let blueCone = null;
 
     if (redOn) {
-        redCone = castLightCone(redLightPos, 0, Math.PI * 2, 100, false, []);
+        redCone = castLightCone(redLightPos, 0, Math.PI * 2, 100, false, allCars.filter(c => c !== car));
         ctx.filter = 'blur(15px)';
         ctx.fillStyle = 'rgba(255, 0, 0, 0.08)';
         ctx.beginPath();
@@ -81,7 +81,7 @@ function drawPoliceCar(car, lightsEnabled = true) {
     }
 
     if (blueOn) {
-        blueCone = castLightCone(blueLightPos, 0, Math.PI * 2, 100, false, []);
+        blueCone = castLightCone(blueLightPos, 0, Math.PI * 2, 100, false, allCars.filter(c => c !== car));
         ctx.filter = 'blur(15px)';
         ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
         ctx.beginPath();
@@ -174,33 +174,43 @@ function drawPoliceCar(car, lightsEnabled = true) {
     ctx.globalCompositeOperation = 'lighter';
 
     if (redOn) {
-        const redGlowX = redLightPos.x;
-        const redGlowY = redLightPos.y;
-        ctx.filter = 'blur(12px)';
+        const redGlowX = redLightPos.x + cos * 6 + sin * 8;
+        const redGlowY = redLightPos.y + sin * 6 - cos * 8;
+        ctx.filter = 'blur(40px)';
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.6)';
+        ctx.beginPath();
+        ctx.arc(redGlowX, redGlowY, 60, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.filter = 'blur(25px)';
         ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
         ctx.beginPath();
-        ctx.arc(redGlowX, redGlowY, 20, 0, Math.PI * 2);
+        ctx.arc(redGlowX, redGlowY, 40, 0, Math.PI * 2);
         ctx.fill();
-        ctx.filter = 'blur(4px)';
+        ctx.filter = 'blur(12px)';
         ctx.fillStyle = 'rgba(255, 0, 0, 1)';
         ctx.beginPath();
-        ctx.arc(redGlowX, redGlowY, 8, 0, Math.PI * 2);
+        ctx.arc(redGlowX, redGlowY, 20, 0, Math.PI * 2);
         ctx.fill();
         ctx.filter = 'none';
     }
 
     if (blueOn) {
-        const blueGlowX = blueLightPos.x;
-        const blueGlowY = blueLightPos.y;
-        ctx.filter = 'blur(12px)';
+        const blueGlowX = blueLightPos.x + cos * 6 - sin * 8;
+        const blueGlowY = blueLightPos.y + sin * 6 + cos * 8;
+        ctx.filter = 'blur(40px)';
+        ctx.fillStyle = 'rgba(0, 0, 255, 0.6)';
+        ctx.beginPath();
+        ctx.arc(blueGlowX, blueGlowY, 60, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.filter = 'blur(25px)';
         ctx.fillStyle = 'rgba(0, 0, 255, 0.8)';
         ctx.beginPath();
-        ctx.arc(blueGlowX, blueGlowY, 20, 0, Math.PI * 2);
+        ctx.arc(blueGlowX, blueGlowY, 40, 0, Math.PI * 2);
         ctx.fill();
-        ctx.filter = 'blur(4px)';
+        ctx.filter = 'blur(12px)';
         ctx.fillStyle = 'rgba(0, 0, 255, 1)';
         ctx.beginPath();
-        ctx.arc(blueGlowX, blueGlowY, 8, 0, Math.PI * 2);
+        ctx.arc(blueGlowX, blueGlowY, 20, 0, Math.PI * 2);
         ctx.fill();
         ctx.filter = 'none';
     }
@@ -222,10 +232,10 @@ function drawPoliceCar(car, lightsEnabled = true) {
             const p1 = redCone.hitPoints[i];
             const p2 = redCone.hitPoints[i + 1];
             const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            if (dist < 100) {
+            if (dist < 20) {
                 const distFromLight = Math.hypot(p1.x - redLightPos.x, p1.y - redLightPos.y);
                 const fade = Math.max(0.1, 1 - distFromLight / 500);
-                const width = 1.9 * fade + 0.1;
+                const width = 1.5 * fade + 0.3;
                 ctx.strokeStyle = `rgba(255, 0, 0, ${fade})`;
                 ctx.lineWidth = width;
                 ctx.beginPath();
@@ -241,10 +251,10 @@ function drawPoliceCar(car, lightsEnabled = true) {
             const p1 = blueCone.hitPoints[i];
             const p2 = blueCone.hitPoints[i + 1];
             const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            if (dist < 100) {
+            if (dist < 20) {
                 const distFromLight = Math.hypot(p1.x - blueLightPos.x, p1.y - blueLightPos.y);
                 const fade = Math.max(0.1, 1 - distFromLight / 500);
-                const width = 1.9 * fade + 0.1;
+                const width = 1.5 * fade + 0.3;
                 ctx.strokeStyle = `rgba(0, 150, 255, ${fade})`;
                 ctx.lineWidth = width;
                 ctx.beginPath();
