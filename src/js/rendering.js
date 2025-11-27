@@ -1,6 +1,5 @@
 function draw() {
-    ctx.fillStyle = '#0a0a1a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawTerrain();
 
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
@@ -368,4 +367,6 @@ function draw() {
     drawDebugBoundingBoxes();
 
     ctx.restore();
+    
+    drawMinimap();
 }

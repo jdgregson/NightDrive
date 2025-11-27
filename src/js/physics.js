@@ -65,13 +65,22 @@ function checkCarToCarCollision(car1, car2) {
 
 function checkCollision(carObj, otherCar) {
     const corners = getCarCorners(carObj, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
-    const buffer = 200;
+    const buffer = 500;
+    const edgeBuffer = 3;
 
     for (const obs of obstacles) {
         if (Math.abs(obs.x - carObj.x) > buffer || Math.abs(obs.y - carObj.y) > buffer) continue;
         for (const corner of corners) {
-            if (corner.x >= obs.x && corner.x <= obs.x + obs.width &&
-                corner.y >= obs.y && corner.y <= obs.y + obs.height) {
+            if (corner.x >= obs.x - edgeBuffer && corner.x <= obs.x + obs.width + edgeBuffer &&
+                corner.y >= obs.y - edgeBuffer && corner.y <= obs.y + obs.height + edgeBuffer) {
+                
+                const dx = carObj.x - (obs.x + obs.width / 2);
+                const dy = carObj.y - (obs.y + obs.height / 2);
+                const pushDist = 5;
+                const angle = Math.atan2(dy, dx);
+                carObj.x += Math.cos(angle) * pushDist;
+                carObj.y += Math.sin(angle) * pushDist;
+                
                 return true;
             }
         }
