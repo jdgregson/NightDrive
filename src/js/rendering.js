@@ -5,6 +5,25 @@ function draw() {
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
 
+    for (const d of debris) {
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(d.rotation);
+        ctx.fillStyle = '#000000';
+        if (d.isContainer) {
+            if (d.shape === 'round') {
+                ctx.beginPath();
+                ctx.arc(0, 0, d.size/2, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.fillRect(-d.size/2, -d.size/2, d.size, d.size);
+            }
+        } else {
+            ctx.fillRect(-d.size/2, -d.size/2, d.size, d.size);
+        }
+        ctx.restore();
+    }
+
     ctx.globalCompositeOperation = 'lighter';
 
     const headlightOffset = 35;
@@ -239,26 +258,6 @@ function draw() {
         
         ctx.globalCompositeOperation = 'source-over';
     }
-
-    for (const d of debris) {
-        ctx.save();
-        ctx.translate(d.x, d.y);
-        ctx.rotate(d.rotation);
-        ctx.fillStyle = '#000000';
-        if (d.isContainer) {
-            if (d.shape === 'round') {
-                ctx.beginPath();
-                ctx.arc(0, 0, d.size/2, 0, Math.PI * 2);
-                ctx.fill();
-            } else {
-                ctx.fillRect(-d.size/2, -d.size/2, d.size, d.size);
-            }
-        } else {
-            ctx.fillRect(-d.size/2, -d.size/2, d.size, d.size);
-        }
-        ctx.restore();
-    }
-
 
     ctx.fillStyle = '#444444';
     ctx.fillRect(streetLight.x - streetLight.poleWidth / 2, streetLight.y - streetLight.poleHeight, streetLight.poleWidth, streetLight.poleHeight);
