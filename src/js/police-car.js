@@ -220,11 +220,16 @@ function updatePoliceCar(car, otherCar) {
     const prevY = car.y;
     
     car.prevSpeed = car.speed;
+    
+    const boostMultiplier = keys['shift'] ? 2.5 : 1;
 
-    if (keys['w']) car.speed = Math.min(car.speed + car.acceleration, car.maxSpeed);
+    if (keys['w']) {
+        const targetSpeed = car.speed + car.acceleration * boostMultiplier;
+        car.speed = keys['shift'] ? Math.min(targetSpeed, car.maxSpeed * 2.5) : Math.min(targetSpeed, Math.max(car.speed, car.maxSpeed));
+    }
     if (keys['s']) car.speed = Math.max(car.speed - car.acceleration, -car.maxSpeed / 2);
 
-    car.speed *= car.friction;
+    if (!keys['w'] && !keys['s']) car.speed *= car.friction;
     if (Math.abs(car.speed) < 0.01) car.speed = 0;
 
     if (keys['a']) car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
