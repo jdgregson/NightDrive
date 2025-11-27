@@ -7,8 +7,8 @@ canvas.height = window.innerHeight;
 const car = {
     x: 0,
     y: 0,
-    width: 40,
-    height: 60,
+    width: 30,
+    height: 80,
     angle: 0,
     speed: 0,
     maxSpeed: 5,
@@ -36,6 +36,13 @@ const obstacles = [
         height: 60
     }
 ];
+
+const streetLight = {
+    x: 150,
+    y: 150,
+    poleWidth: 8,
+    poleHeight: 60
+};
 
 const keys = {};
 
@@ -69,7 +76,8 @@ function getAllEdges() {
     return edges;
 }
 
-function raycast(origin, angle, maxDist = 1000) {
+function raycast(origin, angle, maxDist = 1000, isStreetLight = false) {
+    if (isStreetLight) maxDist = 250;
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
     let minDist = maxDist;
@@ -101,13 +109,13 @@ function raycast(origin, angle, maxDist = 1000) {
     return { dist: minDist, hit: hitPoint };
 }
 
-function castLightCone(origin, angle, spread, rays = 500) {
+function castLightCone(origin, angle, spread, rays = 500, isStreetLight = false) {
     const points = [origin];
     const hitPoints = [];
 
     for (let i = 0; i < rays; i++) {
         const a = angle - spread / 2 + (spread * i) / (rays - 1);
-        const { dist, hit } = raycast(origin, a);
+        const { dist, hit } = raycast(origin, a, 1000, isStreetLight);
         points.push({
             x: origin.x + Math.cos(a) * dist,
             y: origin.y + Math.sin(a) * dist
@@ -153,21 +161,21 @@ function update() {
         car.y = prevY;
         car.speed = 0;
     }
-    
+
     camera.x = car.x - canvas.width / 2;
     camera.y = car.y - canvas.height / 2;
 }
 
 function draw() {
-    ctx.fillStyle = '#0a1a0a';
+    ctx.fillStyle = '#0a0a1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
 
     ctx.globalCompositeOperation = 'lighter';
 
-    const headlightOffset = 25;
+    const headlightOffset = 35;
     const leftLight = {
         x: car.x + Math.cos(car.angle) * headlightOffset - Math.sin(car.angle) * 10,
         y: car.y + Math.sin(car.angle) * headlightOffset + Math.cos(car.angle) * 10
@@ -179,6 +187,39 @@ function draw() {
 
     const lightAngle = car.angle;
     const spread = Math.PI / 3;
+
+    const streetLightPos = { x: streetLight.x, y: streetLight.y - streetLight.poleHeight };
+    const streetLightCone = castLightCone(streetLightPos, 0, Math.PI * 2, 500, true);
+
+    ctx.filter = 'blur(20px)';
+    ctx.fillStyle = 'rgba(255, 240, 200, 0.06)';
+    ctx.beginPath();
+    ctx.moveTo(streetLightCone.points[0].x, streetLightCone.points[0].y);
+    for (let i = 1; i < streetLightCone.points.length; i++) {
+        ctx.lineTo(streetLightCone.points[i].x, streetLightCone.points[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.filter = 'blur(12px)';
+    ctx.fillStyle = 'rgba(255, 240, 200, 0.05)';
+    ctx.beginPath();
+    ctx.moveTo(streetLightCone.points[0].x, streetLightCone.points[0].y);
+    for (let i = 1; i < streetLightCone.points.length; i++) {
+        ctx.lineTo(streetLightCone.points[i].x, streetLightCone.points[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.filter = 'none';
+    ctx.fillStyle = 'rgba(255, 240, 200, 0.04)';
+    ctx.beginPath();
+    ctx.moveTo(streetLightCone.points[0].x, streetLightCone.points[0].y);
+    for (let i = 1; i < streetLightCone.points.length; i++) {
+        ctx.lineTo(streetLightCone.points[i].x, streetLightCone.points[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
 
     const wideSpread = Math.PI / 1.5;
     const leftWide = castLightCone(leftLight, lightAngle, wideSpread);
@@ -221,9 +262,9 @@ function draw() {
     }
     ctx.closePath();
     ctx.fill();
-    
+
     ctx.filter = 'none';
-    
+
     ctx.fillStyle = 'rgba(255, 255, 200, 0.15)';
     ctx.beginPath();
     ctx.moveTo(leftCone.points[0].x, leftCone.points[0].y);
@@ -242,6 +283,147 @@ function draw() {
     ctx.fill();
 
     ctx.globalCompositeOperation = 'source-over';
+
+    ctx.save();
+    ctx.translate(car.x, car.y);
+    ctx.rotate(car.angle - Math.PI / 2);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-car.width / 2, -14, car.width, 28);
+
+    const frame = Math.floor(Date.now() / 50) % 12;
+    let redOn = false;
+    let blueOn = false;
+
+    if (frame < 2 || (frame >= 3 && frame < 5)) {
+        redOn = true;
+    } else if (frame >= 6 && frame < 8 || (frame >= 9 && frame < 11)) {
+        blueOn = true;
+    }
+
+    ctx.restore();
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    const cos = Math.cos(car.angle);
+    const sin = Math.sin(car.angle);
+    const blueLightPos = {
+        x: car.x + cos * (car.height / 2 - 33) - sin * (car.width / 4 - 1),
+        y: car.y + sin * (car.height / 2 - 33) + cos * (car.width / 4 - 1)
+    };
+    const redLightPos = {
+        x: car.x + cos * (car.height / 2 - 33) + sin * (car.width / 4 - 1),
+        y: car.y + sin * (car.height / 2 - 33) - cos * (car.width / 4 - 1)
+    };
+
+    if (redOn) {
+        const redCone = castLightCone(redLightPos, 0, Math.PI * 2, 100);
+        ctx.filter = 'blur(15px)';
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.08)';
+        ctx.beginPath();
+        ctx.moveTo(redCone.points[0].x, redCone.points[0].y);
+        for (let i = 1; i < redCone.points.length; i++) {
+            ctx.lineTo(redCone.points[i].x, redCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.filter = 'none';
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.05)';
+        ctx.beginPath();
+        ctx.moveTo(redCone.points[0].x, redCone.points[0].y);
+        for (let i = 1; i < redCone.points.length; i++) {
+            ctx.lineTo(redCone.points[i].x, redCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+    }
+
+    if (blueOn) {
+        const blueCone = castLightCone(blueLightPos, 0, Math.PI * 2, 100);
+        ctx.filter = 'blur(15px)';
+        ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
+        ctx.beginPath();
+        ctx.moveTo(blueCone.points[0].x, blueCone.points[0].y);
+        for (let i = 1; i < blueCone.points.length; i++) {
+            ctx.lineTo(blueCone.points[i].x, blueCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.filter = 'none';
+        ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
+        ctx.beginPath();
+        ctx.moveTo(blueCone.points[0].x, blueCone.points[0].y);
+        for (let i = 1; i < blueCone.points.length; i++) {
+            ctx.lineTo(blueCone.points[i].x, blueCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.save();
+    ctx.translate(car.x, car.y);
+    ctx.rotate(car.angle - Math.PI / 2);
+
+    ctx.fillStyle = '#ffff00';
+    ctx.fillRect(-14, car.height / 2 - 2, 8, 3);
+    ctx.fillRect(6, car.height / 2 - 2, 8, 3);
+    ctx.restore();
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    if (redOn) {
+        const redGlowX = redLightPos.x;
+        const redGlowY = redLightPos.y;
+        ctx.filter = 'blur(12px)';
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+        ctx.beginPath();
+        ctx.arc(redGlowX, redGlowY, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.filter = 'blur(4px)';
+        ctx.fillStyle = 'rgba(255, 0, 0, 1)';
+        ctx.beginPath();
+        ctx.arc(redGlowX, redGlowY, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.filter = 'none';
+    }
+
+    if (blueOn) {
+        const blueGlowX = blueLightPos.x;
+        const blueGlowY = blueLightPos.y;
+        ctx.filter = 'blur(12px)';
+        ctx.fillStyle = 'rgba(0, 0, 255, 0.8)';
+        ctx.beginPath();
+        ctx.arc(blueGlowX, blueGlowY, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.filter = 'blur(4px)';
+        ctx.fillStyle = 'rgba(0, 0, 255, 1)';
+        ctx.beginPath();
+        ctx.arc(blueGlowX, blueGlowY, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.filter = 'none';
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.save();
+    ctx.translate(car.x, car.y);
+    ctx.rotate(car.angle - Math.PI / 2);
+
+    ctx.fillStyle = redOn ? '#ff0000' : '#330000';
+    ctx.fillRect(0, car.height / 2 - 36, car.width / 2 - 2, 6);
+    ctx.fillStyle = blueOn ? '#b2c2ffff' : '#000033';
+    ctx.fillRect(-car.width / 2 + 2, car.height / 2 - 36, car.width / 2 - 2, 6);
+    ctx.restore();
+
+    ctx.fillStyle = '#444444';
+    ctx.fillRect(streetLight.x - streetLight.poleWidth / 2, streetLight.y - streetLight.poleHeight, streetLight.poleWidth, streetLight.poleHeight);
+    ctx.fillStyle = '#666666';
+    ctx.fillRect(streetLight.x - 12, streetLight.y - streetLight.poleHeight - 8, 24, 8);
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
     ctx.lineWidth = 2;
@@ -270,16 +452,6 @@ function draw() {
         }
     }
 
-    ctx.save();
-    ctx.translate(car.x, car.y);
-    ctx.rotate(car.angle - Math.PI / 2);
-    ctx.fillStyle = '#cc0000';
-    ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
-    ctx.fillStyle = '#ffff00';
-    ctx.fillRect(-10, -car.height / 2 - 5, 8, 5);
-    ctx.fillRect(2, -car.height / 2 - 5, 8, 5);
-    ctx.restore();
-    
     ctx.restore();
 }
 
