@@ -9,7 +9,9 @@ function createPoliceCar(x, y) {
         maxSpeed: 5,
         acceleration: 0.3,
         friction: 0.95,
-        turnSpeed: 0.05
+        turnSpeed: 0.05,
+        vx: 0,
+        vy: 0
     };
 }
 
@@ -202,21 +204,72 @@ function updatePoliceCar(car, otherCar) {
     if (keys['a']) car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
     if (keys['d']) car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
 
-    car.x += Math.cos(car.angle) * car.speed;
-    car.y += Math.sin(car.angle) * car.speed;
+    car.x += Math.cos(car.angle) * car.speed + car.vx;
+    car.y += Math.sin(car.angle) * car.speed + car.vy;
+    
+    car.vx *= 0.9;
+    car.vy *= 0.9;
+    if (Math.abs(car.vx) < 0.01) car.vx = 0;
+    if (Math.abs(car.vy) < 0.01) car.vy = 0;
 
-    if (otherCar && checkCollision(car, otherCar)) {
+    if (checkCollision(car, null)) {
         car.x = prevX;
         car.y = prevY;
-        
+        car.vx = 0;
+        car.vy = 0;
+        car.speed = 0;
+    }
+
+    if (otherCar && checkCollision(car, otherCar)) {
         const dx = car.x - otherCar.x;
         const dy = car.y - otherCar.y;
         const dist = Math.hypot(dx, dy);
+        
         if (dist > 0) {
-            const bounceAngle = Math.atan2(dy, dx);
-            car.speed = -car.speed * 0.3;
-            car.x += Math.cos(bounceAngle) * 3;
-            car.y += Math.sin(bounceAngle) * 3;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            
+            const carVelX = Math.cos(car.angle) * car.speed + car.vx;
+            const carVelY = Math.sin(car.angle) * car.speed + car.vy;
+            const otherVelX = Math.cos(otherCar.angle) * otherCar.speed + otherCar.vx;
+            const otherVelY = Math.sin(otherCar.angle) * otherCar.speed + otherCar.vy;
+            
+            const relVelX = carVelX - otherVelX;
+            const relVelY = carVelY - otherVelY;
+            const relVelDotNormal = relVelX * nx + relVelY * ny;
+            
+            if (relVelDotNormal < 0) {
+                const restitution = 0.3;
+                const impulse = -(1 + restitution) * relVelDotNormal / 2;
+                
+                car.vx += impulse * nx;
+                car.vy += impulse * ny;
+                otherCar.vx -= impulse * nx;
+                otherCar.vy -= impulse * ny;
+                otherCar.angle += (Math.random() - 0.5) * 0.4;
+                
+                car.speed *= 0.5;
+                otherCar.speed *= 0.5;
+            }
+            
+            const minDist = 90;
+            const overlap = minDist - dist;
+            if (overlap > 0) {
+                const separationX = nx * overlap * 0.5;
+                const separationY = ny * overlap * 0.5;
+                car.x += separationX;
+                car.y += separationY;
+                const tempX = otherCar.x;
+                const tempY = otherCar.y;
+                otherCar.x -= separationX;
+                otherCar.y -= separationY;
+                if (checkCollision(otherCar, null)) {
+                    otherCar.x = tempX;
+                    otherCar.y = tempY;
+                    otherCar.vx = 0;
+                    otherCar.vy = 0;
+                }
+            }
         }
     }
 

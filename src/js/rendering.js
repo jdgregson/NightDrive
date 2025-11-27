@@ -260,5 +260,25 @@ function draw() {
     
     ctx.globalCompositeOperation = 'source-over';
 
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 3;
+    const corners1 = getCarCorners(playerCar, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
+    ctx.beginPath();
+    ctx.moveTo(corners1[0].x, corners1[0].y);
+    for (let i = 1; i < corners1.length; i++) {
+        ctx.lineTo(corners1[i].x, corners1[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    
+    const corners2 = getCarCorners(aiCar, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
+    ctx.beginPath();
+    ctx.moveTo(corners2[0].x, corners2[0].y);
+    for (let i = 1; i < corners2.length; i++) {
+        ctx.lineTo(corners2[i].x, corners2[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
     ctx.restore();
 }
