@@ -118,7 +118,8 @@ function draw() {
 
     ctx.globalCompositeOperation = 'source-over';
 
-    drawPoliceCar();
+    drawPoliceCar(aiCar);
+    drawPoliceCar(playerCar);
 
     const cos = Math.cos(car.angle);
     const sin = Math.sin(car.angle);

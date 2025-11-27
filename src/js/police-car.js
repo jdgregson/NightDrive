@@ -1,17 +1,19 @@
-const car = {
-    x: 0,
-    y: 0,
-    width: 30,
-    height: 80,
-    angle: 0,
-    speed: 0,
-    maxSpeed: 5,
-    acceleration: 0.3,
-    friction: 0.95,
-    turnSpeed: 0.05
-};
+function createPoliceCar(x, y) {
+    return {
+        x: x,
+        y: y,
+        width: 30,
+        height: 80,
+        angle: 0,
+        speed: 0,
+        maxSpeed: 5,
+        acceleration: 0.3,
+        friction: 0.95,
+        turnSpeed: 0.05
+    };
+}
 
-function drawPoliceCar() {
+function drawPoliceCar(car) {
     ctx.save();
     ctx.translate(car.x, car.y);
     ctx.rotate(car.angle - Math.PI / 2);
@@ -185,4 +187,38 @@ function drawPoliceCar() {
     ctx.fillStyle = blueOn ? '#b2c2ffff' : '#000033';
     ctx.fillRect(-car.width / 2 + 2, car.height / 2 - 36, car.width / 2 - 2, 6);
     ctx.restore();
+}
+
+function updatePoliceCar(car, otherCar) {
+    const prevX = car.x;
+    const prevY = car.y;
+    
+    if (keys['w']) car.speed = Math.min(car.speed + car.acceleration, car.maxSpeed);
+    if (keys['s']) car.speed = Math.max(car.speed - car.acceleration, -car.maxSpeed / 2);
+
+    car.speed *= car.friction;
+    if (Math.abs(car.speed) < 0.01) car.speed = 0;
+
+    if (keys['a']) car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
+    if (keys['d']) car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
+
+    car.x += Math.cos(car.angle) * car.speed;
+    car.y += Math.sin(car.angle) * car.speed;
+
+    if (otherCar && checkCollision(car, otherCar)) {
+        car.x = prevX;
+        car.y = prevY;
+        
+        const dx = car.x - otherCar.x;
+        const dy = car.y - otherCar.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0) {
+            const bounceAngle = Math.atan2(dy, dx);
+            car.speed = -car.speed * 0.3;
+            car.x += Math.cos(bounceAngle) * 3;
+            car.y += Math.sin(bounceAngle) * 3;
+        }
+    }
+
+    checkObjectCollision();
 }

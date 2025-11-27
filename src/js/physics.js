@@ -1,19 +1,54 @@
-function getCarCorners() {
-    const cos = Math.cos(car.angle);
-    const sin = Math.sin(car.angle);
-    const hw = car.width / 2;
-    const hh = car.height / 2;
+function getCarCorners(carObj) {
+    const cos = Math.cos(carObj.angle);
+    const sin = Math.sin(carObj.angle);
+    const hw = carObj.width / 2;
+    const hh = carObj.height / 2;
 
     return [
-        { x: car.x + (-hw * cos - hh * sin), y: car.y + (-hw * sin + hh * cos) },
-        { x: car.x + (hw * cos - hh * sin), y: car.y + (hw * sin + hh * cos) },
-        { x: car.x + (hw * cos + hh * sin), y: car.y + (hw * sin - hh * cos) },
-        { x: car.x + (-hw * cos + hh * sin), y: car.y + (-hw * sin - hh * cos) }
+        { x: carObj.x + (-hw * cos - hh * sin), y: carObj.y + (-hw * sin + hh * cos) },
+        { x: carObj.x + (hw * cos - hh * sin), y: carObj.y + (hw * sin + hh * cos) },
+        { x: carObj.x + (hw * cos + hh * sin), y: carObj.y + (hw * sin - hh * cos) },
+        { x: carObj.x + (-hw * cos + hh * sin), y: carObj.y + (-hw * sin - hh * cos) }
     ];
 }
 
-function checkCollision() {
-    const corners = getCarCorners();
+function checkCarToCarCollision(car1, car2) {
+    const corners1 = getCarCorners(car1);
+    const corners2 = getCarCorners(car2);
+    
+    const axes = [
+        { x: Math.cos(car1.angle), y: Math.sin(car1.angle) },
+        { x: -Math.sin(car1.angle), y: Math.cos(car1.angle) },
+        { x: Math.cos(car2.angle), y: Math.sin(car2.angle) },
+        { x: -Math.sin(car2.angle), y: Math.cos(car2.angle) }
+    ];
+    
+    for (const axis of axes) {
+        let min1 = Infinity, max1 = -Infinity;
+        let min2 = Infinity, max2 = -Infinity;
+        
+        for (const corner of corners1) {
+            const proj = corner.x * axis.x + corner.y * axis.y;
+            min1 = Math.min(min1, proj);
+            max1 = Math.max(max1, proj);
+        }
+        
+        for (const corner of corners2) {
+            const proj = corner.x * axis.x + corner.y * axis.y;
+            min2 = Math.min(min2, proj);
+            max2 = Math.max(max2, proj);
+        }
+        
+        if (max1 < min2 || max2 < min1) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+function checkCollision(carObj, otherCar) {
+    const corners = getCarCorners(carObj);
 
     for (const obs of obstacles) {
         for (const corner of corners) {
@@ -23,6 +58,11 @@ function checkCollision() {
             }
         }
     }
+    
+    if (otherCar && checkCarToCarCollision(carObj, otherCar)) {
+        return true;
+    }
+    
     return false;
 }
 
