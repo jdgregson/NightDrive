@@ -44,6 +44,16 @@ const streetLight = {
     poleHeight: 60
 };
 
+const interactiveObjects = [
+    { type: 'mailbox', x: -100, y: -200, hit: false },
+    { type: 'trashcan', shape: 'round', color: '#4a4a4a', x: 300, y: 100, hit: false },
+    { type: 'trashcan', shape: 'square', color: '#2a5a2a', x: -200, y: 200, hit: false },
+    { type: 'trashcan', shape: 'round', color: '#5a2a2a', x: 100, y: -150, hit: false },
+    { type: 'trashcan', shape: 'square', color: '#2a2a5a', x: -300, y: -50, hit: false }
+];
+
+const debris = [];
+
 const keys = {};
 let lightsOn = false;
 let headlightsOn = true;
@@ -107,6 +117,17 @@ function getAllEdges() {
             [{ x: obs.x + obs.width, y: obs.y }, { x: obs.x + obs.width, y: obs.y + obs.height }],
             [{ x: obs.x + obs.width, y: obs.y + obs.height }, { x: obs.x, y: obs.y + obs.height }],
             [{ x: obs.x, y: obs.y + obs.height }, { x: obs.x, y: obs.y }]
+        );
+    }
+    for (const obj of interactiveObjects) {
+        if (obj.hit) continue;
+        const size = obj.type === 'mailbox' ? 20 : 18;
+        const hsize = size / 2;
+        edges.push(
+            [{ x: obj.x - hsize, y: obj.y - hsize }, { x: obj.x + hsize, y: obj.y - hsize }],
+            [{ x: obj.x + hsize, y: obj.y - hsize }, { x: obj.x + hsize, y: obj.y + hsize }],
+            [{ x: obj.x + hsize, y: obj.y + hsize }, { x: obj.x - hsize, y: obj.y + hsize }],
+            [{ x: obj.x - hsize, y: obj.y + hsize }, { x: obj.x - hsize, y: obj.y - hsize }]
         );
     }
     return edges;
@@ -176,6 +197,109 @@ function checkCollision() {
     return false;
 }
 
+function checkObjectCollision() {
+    const carSpeed = Math.abs(car.speed);
+    
+    for (const obj of interactiveObjects) {
+        if (obj.hit) continue;
+        
+        const size = obj.type === 'mailbox' ? 20 : 18;
+        const dist = Math.hypot(car.x - obj.x, car.y - obj.y);
+        
+        if (dist < size + 15 && carSpeed > 0.5) {
+            obj.hit = true;
+            const angle = Math.atan2(obj.y - car.y, obj.x - car.x);
+            const force = carSpeed * 2;
+            
+            if (obj.type === 'mailbox') {
+                for (let i = 0; i < 8; i++) {
+                    const colors = ['#ffffff', '#ff6b6b', '#4ecdc4', '#ffe66d'];
+                    debris.push({
+                        x: obj.x,
+                        y: obj.y,
+                        vx: Math.cos(angle + (Math.random() - 0.5) * 1.5) * (carSpeed * 0.5 + Math.random() * 0.5),
+                        vy: Math.sin(angle + (Math.random() - 0.5) * 1.5) * (carSpeed * 0.5 + Math.random() * 0.5),
+                        size: 4 + Math.random() * 4,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        rotation: Math.random() * Math.PI * 2,
+                        rotSpeed: (Math.random() - 0.5) * 0.3
+                    });
+                }
+            } else {
+                const trashColors = ['#8b4513', '#a0522d', '#cd853f', '#daa520', '#b8860b'];
+                for (let i = 0; i < 12; i++) {
+                    debris.push({
+                        x: obj.x,
+                        y: obj.y,
+                        vx: Math.cos(angle + (Math.random() - 0.5) * 2) * (carSpeed * 0.6 + Math.random() * 0.8),
+                        vy: Math.sin(angle + (Math.random() - 0.5) * 2) * (carSpeed * 0.6 + Math.random() * 0.8),
+                        size: 3 + Math.random() * 5,
+                        color: trashColors[Math.floor(Math.random() * trashColors.length)],
+                        rotation: Math.random() * Math.PI * 2,
+                        rotSpeed: (Math.random() - 0.5) * 0.4
+                    });
+                }
+                debris.push({
+                    x: obj.x,
+                    y: obj.y,
+                    vx: Math.cos(angle) * carSpeed * 0.8,
+                    vy: Math.sin(angle) * carSpeed * 0.8,
+                    size: 18,
+                    color: obj.color,
+                    shape: obj.shape,
+                    rotation: 0,
+                    rotSpeed: (Math.random() - 0.5) * 0.2,
+                    isContainer: true
+                });
+            }
+        }
+    }
+}
+
+function isPointLit(x, y) {
+    const headlightOffset = 35;
+    const leftLight = {
+        x: car.x + Math.cos(car.angle) * headlightOffset - Math.sin(car.angle) * 10,
+        y: car.y + Math.sin(car.angle) * headlightOffset + Math.cos(car.angle) * 10
+    };
+    const rightLight = {
+        x: car.x + Math.cos(car.angle) * headlightOffset + Math.sin(car.angle) * 10,
+        y: car.y + Math.sin(car.angle) * headlightOffset - Math.cos(car.angle) * 10
+    };
+    
+    if (headlightsOn) {
+        const distLeft = Math.hypot(x - leftLight.x, y - leftLight.y);
+        const angleToLeft = Math.atan2(y - leftLight.y, x - leftLight.x);
+        const diffLeft = Math.abs(angleToLeft - car.angle);
+        if (distLeft < 400 && diffLeft < Math.PI / 2.5) return true;
+        
+        const distRight = Math.hypot(x - rightLight.x, y - rightLight.y);
+        const angleToRight = Math.atan2(y - rightLight.y, x - rightLight.x);
+        const diffRight = Math.abs(angleToRight - car.angle);
+        if (distRight < 400 && diffRight < Math.PI / 2.5) return true;
+    }
+    
+    const streetLightPos = { x: streetLight.x, y: streetLight.y - streetLight.poleHeight };
+    const distStreet = Math.hypot(x - streetLightPos.x, y - streetLightPos.y);
+    if (distStreet < 250) return true;
+    
+    if (spotlightActive) {
+        const cos = Math.cos(car.angle);
+        const sin = Math.sin(car.angle);
+        const driverSidePos = {
+            x: car.x + cos * 10 + sin * (car.width / 2 + 5),
+            y: car.y + sin * 10 - cos * (car.width / 2 + 5)
+        };
+        const distSpot = Math.hypot(x - driverSidePos.x, y - driverSidePos.y);
+        const angleToSpot = Math.atan2(y - driverSidePos.y, x - driverSidePos.x);
+        const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
+        const diffSpot = Math.abs(angleToSpot - spotAngle);
+        if (distSpot < 600 && diffSpot < Math.PI / 18) return true;
+    }
+    
+    return false;
+}
+
 function update() {
     const prevX = car.x;
     const prevY = car.y;
@@ -196,6 +320,17 @@ function update() {
         car.x = prevX;
         car.y = prevY;
         car.speed = 0;
+    }
+
+    checkObjectCollision();
+
+    for (const d of debris) {
+        d.x += d.vx;
+        d.y += d.vy;
+        d.vx *= 0.98;
+        d.vy *= 0.98;
+        d.rotation += d.rotSpeed;
+        d.rotSpeed *= 0.99;
     }
 
     camera.x = car.x - canvas.width / 2;
@@ -550,11 +685,33 @@ function draw() {
         ctx.globalCompositeOperation = 'source-over';
     }
 
+    for (const d of debris) {
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(d.rotation);
+        ctx.fillStyle = '#000000';
+        if (d.isContainer) {
+            if (d.shape === 'round') {
+                ctx.beginPath();
+                ctx.arc(0, 0, d.size/2, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.fillRect(-d.size/2, -d.size/2, d.size, d.size);
+            }
+        } else {
+            ctx.fillRect(-d.size/2, -d.size/2, d.size, d.size);
+        }
+        ctx.restore();
+    }
+
+
     ctx.fillStyle = '#444444';
     ctx.fillRect(streetLight.x - streetLight.poleWidth / 2, streetLight.y - streetLight.poleHeight, streetLight.poleWidth, streetLight.poleHeight);
     ctx.fillStyle = '#666666';
     ctx.fillRect(streetLight.x - 12, streetLight.y - streetLight.poleHeight - 8, 24, 8);
 
+    ctx.globalCompositeOperation = 'lighter';
+    
     if (headlightsOn) {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.lineWidth = 2;
@@ -590,7 +747,7 @@ function draw() {
             y: car.y + sin * 10 - cos * (car.width / 2 + 5)
         };
         const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
-        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 8, 300);
+        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 300);
         
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.lineWidth = 2;
@@ -607,6 +764,8 @@ function draw() {
             }
         }
     }
+    
+    ctx.globalCompositeOperation = 'source-over';
 
     ctx.restore();
 }
