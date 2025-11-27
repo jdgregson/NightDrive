@@ -1,6 +1,13 @@
 function getAllEdges(cars = []) {
     const edges = [];
+    const buffer = 600;
+    const minX = camera.x - buffer;
+    const maxX = camera.x + canvas.width + buffer;
+    const minY = camera.y - buffer;
+    const maxY = camera.y + canvas.height + buffer;
+    
     for (const obs of obstacles) {
+        if (obs.x + obs.width < minX || obs.x > maxX || obs.y + obs.height < minY || obs.y > maxY) continue;
         edges.push(
             [{ x: obs.x, y: obs.y }, { x: obs.x + obs.width, y: obs.y }],
             [{ x: obs.x + obs.width, y: obs.y }, { x: obs.x + obs.width, y: obs.y + obs.height }],
@@ -10,6 +17,7 @@ function getAllEdges(cars = []) {
     }
     for (const obj of interactiveObjects) {
         if (obj.hit) continue;
+        if (obj.x < minX || obj.x > maxX || obj.y < minY || obj.y > maxY) continue;
         const size = obj.type === 'mailbox' ? 20 : 18;
         const hsize = size / 2;
         edges.push(

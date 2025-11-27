@@ -65,8 +65,10 @@ function checkCarToCarCollision(car1, car2) {
 
 function checkCollision(carObj, otherCar) {
     const corners = getCarCorners(carObj, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
+    const buffer = 200;
 
     for (const obs of obstacles) {
+        if (Math.abs(obs.x - carObj.x) > buffer || Math.abs(obs.y - carObj.y) > buffer) continue;
         for (const corner of corners) {
             if (corner.x >= obs.x && corner.x <= obs.x + obs.width &&
                 corner.y >= obs.y && corner.y <= obs.y + obs.height) {
@@ -85,9 +87,10 @@ function checkCollision(carObj, otherCar) {
 function checkObjectCollision(carObj) {
     const carSpeed = Math.hypot(carObj.vx, carObj.vy) || Math.abs(carObj.speed);
     const corners = getCarCorners(carObj, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
+    const buffer = 100;
 
     for (const obj of interactiveObjects) {
-        if (obj.hit) continue;
+        if (obj.hit || Math.abs(obj.x - carObj.x) > buffer || Math.abs(obj.y - carObj.y) > buffer) continue;
 
         const size = obj.type === 'mailbox' ? 20 : 18;
         let hit = false;
