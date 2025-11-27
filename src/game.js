@@ -46,7 +46,12 @@ const streetLight = {
 
 const keys = {};
 let lightsOn = false;
+let headlightsOn = true;
 let lKeyPressed = false;
+let hKeyPressed = false;
+let spotlightActive = false;
+let mouseWorldX = 0;
+let mouseWorldY = 0;
 
 window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
@@ -55,11 +60,29 @@ window.addEventListener('keydown', e => {
         lKeyPressed = true;
         lightsOn = !lightsOn;
     }
+    if (key === 'h' && !hKeyPressed) {
+        hKeyPressed = true;
+        headlightsOn = !headlightsOn;
+    }
 });
 window.addEventListener('keyup', e => {
     const key = e.key.toLowerCase();
     keys[key] = false;
     if (key === 'l') lKeyPressed = false;
+    if (key === 'h') hKeyPressed = false;
+});
+
+canvas.addEventListener('mousedown', () => {
+    spotlightActive = true;
+});
+
+canvas.addEventListener('mouseup', () => {
+    spotlightActive = false;
+});
+
+canvas.addEventListener('mousemove', e => {
+    mouseWorldX = e.clientX + camera.x;
+    mouseWorldY = e.clientY + camera.y;
 });
 
 function getCarCorners() {
@@ -234,12 +257,16 @@ function draw() {
     ctx.closePath();
     ctx.fill();
 
-    const wideSpread = Math.PI / 1.5;
-    const leftWide = castLightCone(leftLight, lightAngle, wideSpread);
-    const rightWide = castLightCone(rightLight, lightAngle, wideSpread);
+    const leftCone = castLightCone(leftLight, lightAngle, spread);
+    const rightCone = castLightCone(rightLight, lightAngle, spread);
 
-    ctx.filter = 'blur(8px)';
-    ctx.fillStyle = 'rgba(255, 255, 200, 0.08)';
+    if (headlightsOn) {
+        const wideSpread = Math.PI / 1.5;
+        const leftWide = castLightCone(leftLight, lightAngle, wideSpread);
+        const rightWide = castLightCone(rightLight, lightAngle, wideSpread);
+
+        ctx.filter = 'blur(8px)';
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.08)';
     ctx.beginPath();
     ctx.moveTo(leftWide.points[0].x, leftWide.points[0].y);
     for (let i = 1; i < leftWide.points.length; i++) {
@@ -255,9 +282,6 @@ function draw() {
     }
     ctx.closePath();
     ctx.fill();
-
-    const leftCone = castLightCone(leftLight, lightAngle, spread);
-    const rightCone = castLightCone(rightLight, lightAngle, spread);
 
     ctx.fillStyle = 'rgba(255, 255, 200, 0.2)';
     ctx.beginPath();
@@ -278,22 +302,23 @@ function draw() {
 
     ctx.filter = 'none';
 
-    ctx.fillStyle = 'rgba(255, 255, 200, 0.15)';
-    ctx.beginPath();
-    ctx.moveTo(leftCone.points[0].x, leftCone.points[0].y);
-    for (let i = 1; i < leftCone.points.length; i++) {
-        ctx.lineTo(leftCone.points[i].x, leftCone.points[i].y);
-    }
-    ctx.closePath();
-    ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(leftCone.points[0].x, leftCone.points[0].y);
+        for (let i = 1; i < leftCone.points.length; i++) {
+            ctx.lineTo(leftCone.points[i].x, leftCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
 
-    ctx.beginPath();
-    ctx.moveTo(rightCone.points[0].x, rightCone.points[0].y);
-    for (let i = 1; i < rightCone.points.length; i++) {
-        ctx.lineTo(rightCone.points[i].x, rightCone.points[i].y);
+        ctx.beginPath();
+        ctx.moveTo(rightCone.points[0].x, rightCone.points[0].y);
+        for (let i = 1; i < rightCone.points.length; i++) {
+            ctx.lineTo(rightCone.points[i].x, rightCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
     }
-    ctx.closePath();
-    ctx.fill();
 
     ctx.globalCompositeOperation = 'source-over';
 
@@ -384,18 +409,20 @@ function draw() {
     ctx.translate(car.x, car.y);
     ctx.rotate(car.angle - Math.PI / 2);
 
-    ctx.fillStyle = '#ffff00';
-    ctx.fillRect(-14, car.height / 2 - 2, 8, 3);
-    ctx.fillRect(6, car.height / 2 - 2, 8, 3);
-    
+    if (headlightsOn) {
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(-14, car.height / 2 - 2, 8, 3);
+        ctx.fillRect(6, car.height / 2 - 2, 8, 3);
+    }
+
     ctx.fillStyle = '#ff0000';
     ctx.fillRect(-car.width / 2 + 2, -car.height / 2 + 2, 6, 3);
     ctx.fillRect(car.width / 2 - 8, -car.height / 2 + 2, 6, 3);
     ctx.restore();
-    
+
     {
         ctx.globalCompositeOperation = 'lighter';
-        
+
         const tailLeftPos = {
             x: car.x - cos * (car.height / 2 - 3) - sin * (car.width / 2 - 5),
             y: car.y - sin * (car.height / 2 - 3) + cos * (car.width / 2 - 5)
@@ -404,7 +431,7 @@ function draw() {
             x: car.x - cos * (car.height / 2 - 3) + sin * (car.width / 2 - 5),
             y: car.y - sin * (car.height / 2 - 3) - cos * (car.width / 2 - 5)
         };
-        
+
         ctx.filter = 'blur(6px)';
         ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
         ctx.beginPath();
@@ -415,9 +442,9 @@ function draw() {
         ctx.fill();
         ctx.filter = 'none';
     }
-    
+
     ctx.globalCompositeOperation = 'source-over';
-    
+
     ctx.save();
     ctx.translate(car.x, car.y);
     ctx.rotate(car.angle - Math.PI / 2);
@@ -469,35 +496,115 @@ function draw() {
     ctx.fillRect(-car.width / 2 + 2, car.height / 2 - 36, car.width / 2 - 2, 6);
     ctx.restore();
 
+    if (spotlightActive) {
+        ctx.globalCompositeOperation = 'lighter';
+        const driverSidePos = {
+            x: car.x + cos * 10 + sin * (car.width / 2 + 5),
+            y: car.y + sin * 10 - cos * (car.width / 2 + 5)
+        };
+        const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
+        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 300);
+
+        ctx.filter = 'blur(15px)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);
+        for (let i = 1; i < spotCone.points.length; i++) {
+            ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.filter = 'blur(8px)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.beginPath();
+        ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);
+        for (let i = 1; i < spotCone.points.length; i++) {
+            ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.filter = 'none';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.beginPath();
+        ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);
+        for (let i = 1; i < spotCone.points.length; i++) {
+            ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.filter = 'blur(8px)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.beginPath();
+        ctx.arc(driverSidePos.x, driverSidePos.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.filter = 'none';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.beginPath();
+        ctx.arc(driverSidePos.x, driverSidePos.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.globalCompositeOperation = 'source-over';
+    }
+
     ctx.fillStyle = '#444444';
     ctx.fillRect(streetLight.x - streetLight.poleWidth / 2, streetLight.y - streetLight.poleHeight, streetLight.poleWidth, streetLight.poleHeight);
     ctx.fillStyle = '#666666';
     ctx.fillRect(streetLight.x - 12, streetLight.y - streetLight.poleHeight - 8, 24, 8);
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.lineWidth = 2;
+    if (headlightsOn) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 2;
 
-    for (let i = 0; i < leftCone.hitPoints.length - 1; i++) {
-        const p1 = leftCone.hitPoints[i];
-        const p2 = leftCone.hitPoints[i + 1];
-        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-        if (dist < 20) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
+        for (let i = 0; i < leftCone.hitPoints.length - 1; i++) {
+            const p1 = leftCone.hitPoints[i];
+            const p2 = leftCone.hitPoints[i + 1];
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            if (dist < 20) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
+
+        for (let i = 0; i < rightCone.hitPoints.length - 1; i++) {
+            const p1 = rightCone.hitPoints[i];
+            const p2 = rightCone.hitPoints[i + 1];
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            if (dist < 20) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
         }
     }
 
-    for (let i = 0; i < rightCone.hitPoints.length - 1; i++) {
-        const p1 = rightCone.hitPoints[i];
-        const p2 = rightCone.hitPoints[i + 1];
-        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-        if (dist < 20) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
+    if (spotlightActive) {
+        const driverSidePos = {
+            x: car.x + cos * 10 + sin * (car.width / 2 + 5),
+            y: car.y + sin * 10 - cos * (car.width / 2 + 5)
+        };
+        const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
+        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 8, 300);
+        
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 2;
+
+        for (let i = 0; i < spotCone.hitPoints.length - 1; i++) {
+            const p1 = spotCone.hitPoints[i];
+            const p2 = spotCone.hitPoints[i + 1];
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            if (dist < 20) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
         }
     }
 
