@@ -45,9 +45,22 @@ const streetLight = {
 };
 
 const keys = {};
+let lightsOn = false;
+let lKeyPressed = false;
 
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+window.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    keys[key] = true;
+    if (key === 'l' && !lKeyPressed) {
+        lKeyPressed = true;
+        lightsOn = !lightsOn;
+    }
+});
+window.addEventListener('keyup', e => {
+    const key = e.key.toLowerCase();
+    keys[key] = false;
+    if (key === 'l') lKeyPressed = false;
+});
 
 function getCarCorners() {
     const cos = Math.cos(car.angle);
@@ -292,14 +305,16 @@ function draw() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(-car.width / 2, -14, car.width, 28);
 
-    const frame = Math.floor(Date.now() / 50) % 12;
     let redOn = false;
     let blueOn = false;
 
-    if (frame < 2 || (frame >= 3 && frame < 5)) {
-        redOn = true;
-    } else if (frame >= 6 && frame < 8 || (frame >= 9 && frame < 11)) {
-        blueOn = true;
+    if (lightsOn) {
+        const frame = Math.floor(Date.now() / 50) % 12;
+        if (frame < 2 || (frame >= 3 && frame < 5)) {
+            redOn = true;
+        } else if (frame >= 6 && frame < 8 || (frame >= 9 && frame < 11)) {
+            blueOn = true;
+        }
     }
 
     ctx.restore();
@@ -372,6 +387,40 @@ function draw() {
     ctx.fillStyle = '#ffff00';
     ctx.fillRect(-14, car.height / 2 - 2, 8, 3);
     ctx.fillRect(6, car.height / 2 - 2, 8, 3);
+    
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(-car.width / 2 + 2, -car.height / 2 + 2, 6, 3);
+    ctx.fillRect(car.width / 2 - 8, -car.height / 2 + 2, 6, 3);
+    ctx.restore();
+    
+    {
+        ctx.globalCompositeOperation = 'lighter';
+        
+        const tailLeftPos = {
+            x: car.x - cos * (car.height / 2 - 3) - sin * (car.width / 2 - 5),
+            y: car.y - sin * (car.height / 2 - 3) + cos * (car.width / 2 - 5)
+        };
+        const tailRightPos = {
+            x: car.x - cos * (car.height / 2 - 3) + sin * (car.width / 2 - 5),
+            y: car.y - sin * (car.height / 2 - 3) - cos * (car.width / 2 - 5)
+        };
+        
+        ctx.filter = 'blur(6px)';
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.arc(tailLeftPos.x, tailLeftPos.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(tailRightPos.x, tailRightPos.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.filter = 'none';
+    }
+    
+    ctx.globalCompositeOperation = 'source-over';
+    
+    ctx.save();
+    ctx.translate(car.x, car.y);
+    ctx.rotate(car.angle - Math.PI / 2);
     ctx.restore();
 
     ctx.globalCompositeOperation = 'lighter';
