@@ -40,6 +40,15 @@ function drawDebugBoundingBoxes() {
         ctx.stroke();
     }
 
+    const regularCorners = getCarCorners(regularCar, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
+    ctx.beginPath();
+    ctx.moveTo(regularCorners[0].x, regularCorners[0].y);
+    for (let i = 1; i < regularCorners.length; i++) {
+        ctx.lineTo(regularCorners[i].x, regularCorners[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
     for (const obs of obstacles) {
         ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
     }

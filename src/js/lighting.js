@@ -1,4 +1,4 @@
-function getAllEdges() {
+function getAllEdges(cars = []) {
     const edges = [];
     for (const obs of obstacles) {
         edges.push(
@@ -19,17 +19,35 @@ function getAllEdges() {
             [{ x: obj.x - hsize, y: obj.y + hsize }, { x: obj.x - hsize, y: obj.y - hsize }]
         );
     }
+    for (const c of cars) {
+        const cos = Math.cos(c.angle);
+        const sin = Math.sin(c.angle);
+        const hw = c.width / 2;
+        const hh = c.height / 2;
+        const corners = [
+            { x: c.x + cos * hh - sin * hw, y: c.y + sin * hh + cos * hw },
+            { x: c.x + cos * hh + sin * hw, y: c.y + sin * hh - cos * hw },
+            { x: c.x - cos * hh + sin * hw, y: c.y - sin * hh - cos * hw },
+            { x: c.x - cos * hh - sin * hw, y: c.y - sin * hh + cos * hw }
+        ];
+        edges.push(
+            [corners[0], corners[1]],
+            [corners[1], corners[2]],
+            [corners[2], corners[3]],
+            [corners[3], corners[0]]
+        );
+    }
     return edges;
 }
 
-function raycast(origin, angle, maxDist = 1000, isStreetLight = false) {
+function raycast(origin, angle, maxDist = 1000, isStreetLight = false, cars = []) {
     if (isStreetLight) maxDist = 250;
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
     let minDist = maxDist;
     let hitPoint = null;
 
-    const edges = getAllEdges();
+    const edges = getAllEdges(cars);
 
     for (const [p1, p2] of edges) {
         const x1 = p1.x - origin.x;
@@ -55,13 +73,13 @@ function raycast(origin, angle, maxDist = 1000, isStreetLight = false) {
     return { dist: minDist, hit: hitPoint };
 }
 
-function castLightCone(origin, angle, spread, rays = 500, isStreetLight = false) {
+function castLightCone(origin, angle, spread, rays = 500, isStreetLight = false, cars = []) {
     const points = [origin];
     const hitPoints = [];
 
     for (let i = 0; i < rays; i++) {
         const a = angle - spread / 2 + (spread * i) / (rays - 1);
-        const { dist, hit } = raycast(origin, a, 1000, isStreetLight);
+        const { dist, hit } = raycast(origin, a, 1000, isStreetLight, cars);
         points.push({
             x: origin.x + Math.cos(a) * dist,
             y: origin.y + Math.sin(a) * dist

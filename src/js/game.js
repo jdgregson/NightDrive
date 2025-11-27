@@ -1,6 +1,7 @@
 const playerCar = createPoliceCar(0, 0);
 const aiCar = createPoliceCar(-150, 0);
 const aiCar2 = createPoliceCar(150, 150, playerCar);
+const regularCar = createRegularCar(-400, -300, '#1a4d8f', playerCar);
 const car = playerCar;
 const aiCars = [aiCar, aiCar2];
 
@@ -75,6 +76,7 @@ function update() {
     for (const ai of aiCars) {
         updateAICar(ai, allCars);
     }
+    updateAICar(regularCar, allCars);
 
     for (const d of debris) {
         d.x += d.vx;
