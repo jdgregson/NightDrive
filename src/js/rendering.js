@@ -75,47 +75,26 @@ function draw() {
 
     if (headlightsOn) {
         for (const aiData of aiCones) {
-            const aiLeftWide = castLightCone(aiData.leftLight, aiData.angle, Math.PI / 1.5);
-            const aiRightWide = castLightCone(aiData.rightLight, aiData.angle, Math.PI / 1.5);
+            ctx.filter = 'blur(5px)';
+            ctx.fillStyle = 'rgba(255, 255, 200, 0.05)';
+            ctx.beginPath();
+            ctx.moveTo(aiData.leftCone.points[0].x, aiData.leftCone.points[0].y);
+            for (let i = 1; i < aiData.leftCone.points.length; i++) {
+                ctx.lineTo(aiData.leftCone.points[i].x, aiData.leftCone.points[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
 
-        ctx.filter = 'blur(8px)';
-        ctx.fillStyle = 'rgba(255, 255, 200, 0.08)';
-        ctx.beginPath();
-        ctx.moveTo(aiLeftWide.points[0].x, aiLeftWide.points[0].y);
-        for (let i = 1; i < aiLeftWide.points.length; i++) {
-            ctx.lineTo(aiLeftWide.points[i].x, aiLeftWide.points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(aiData.rightCone.points[0].x, aiData.rightCone.points[0].y);
+            for (let i = 1; i < aiData.rightCone.points.length; i++) {
+                ctx.lineTo(aiData.rightCone.points[i].x, aiData.rightCone.points[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
 
-        ctx.beginPath();
-        ctx.moveTo(aiRightWide.points[0].x, aiRightWide.points[0].y);
-        for (let i = 1; i < aiRightWide.points.length; i++) {
-            ctx.lineTo(aiRightWide.points[i].x, aiRightWide.points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = 'rgba(255, 255, 200, 0.2)';
-        ctx.beginPath();
-        ctx.moveTo(aiData.leftCone.points[0].x, aiData.leftCone.points[0].y);
-        for (let i = 1; i < aiData.leftCone.points.length; i++) {
-            ctx.lineTo(aiData.leftCone.points[i].x, aiData.leftCone.points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(aiData.rightCone.points[0].x, aiData.rightCone.points[0].y);
-        for (let i = 1; i < aiData.rightCone.points.length; i++) {
-            ctx.lineTo(aiData.rightCone.points[i].x, aiData.rightCone.points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.filter = 'none';
-
-            ctx.fillStyle = 'rgba(255, 255, 200, 0.15)';
+            ctx.filter = 'none';
+            ctx.fillStyle = 'rgba(255, 255, 200, 0.12)';
             ctx.beginPath();
             ctx.moveTo(aiData.leftCone.points[0].x, aiData.leftCone.points[0].y);
             for (let i = 1; i < aiData.leftCone.points.length; i++) {
@@ -133,49 +112,53 @@ function draw() {
             ctx.fill();
         }
 
-
-        const wideSpread = Math.PI / 1.5;
+        const wideSpread = brightsOn ? Math.PI / 1.5 : Math.PI / 2.5;
         const leftWide = castLightCone(leftLight, lightAngle, wideSpread);
         const rightWide = castLightCone(rightLight, lightAngle, wideSpread);
 
-        ctx.filter = 'blur(8px)';
-        ctx.fillStyle = 'rgba(255, 255, 200, 0.08)';
-    ctx.beginPath();
-    ctx.moveTo(leftWide.points[0].x, leftWide.points[0].y);
-    for (let i = 1; i < leftWide.points.length; i++) {
-        ctx.lineTo(leftWide.points[i].x, leftWide.points[i].y);
-    }
-    ctx.closePath();
-    ctx.fill();
+        const blurAmount = brightsOn ? 'blur(8px)' : 'blur(5px)';
+        const wideAlpha = brightsOn ? 0.08 : 0.05;
+        const coneAlpha = brightsOn ? 0.2 : 0.12;
+        const innerAlpha = brightsOn ? 0.15 : 0.09;
 
-    ctx.beginPath();
-    ctx.moveTo(rightWide.points[0].x, rightWide.points[0].y);
-    for (let i = 1; i < rightWide.points.length; i++) {
-        ctx.lineTo(rightWide.points[i].x, rightWide.points[i].y);
-    }
-    ctx.closePath();
-    ctx.fill();
+        ctx.filter = blurAmount;
+        ctx.fillStyle = `rgba(255, 255, 200, ${wideAlpha})`;
+        ctx.beginPath();
+        ctx.moveTo(leftWide.points[0].x, leftWide.points[0].y);
+        for (let i = 1; i < leftWide.points.length; i++) {
+            ctx.lineTo(leftWide.points[i].x, leftWide.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
 
-    ctx.fillStyle = 'rgba(255, 255, 200, 0.2)';
-    ctx.beginPath();
-    ctx.moveTo(leftCone.points[0].x, leftCone.points[0].y);
-    for (let i = 1; i < leftCone.points.length; i++) {
-        ctx.lineTo(leftCone.points[i].x, leftCone.points[i].y);
-    }
-    ctx.closePath();
-    ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(rightWide.points[0].x, rightWide.points[0].y);
+        for (let i = 1; i < rightWide.points.length; i++) {
+            ctx.lineTo(rightWide.points[i].x, rightWide.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
 
-    ctx.beginPath();
-    ctx.moveTo(rightCone.points[0].x, rightCone.points[0].y);
-    for (let i = 1; i < rightCone.points.length; i++) {
-        ctx.lineTo(rightCone.points[i].x, rightCone.points[i].y);
-    }
-    ctx.closePath();
-    ctx.fill();
+        ctx.fillStyle = `rgba(255, 255, 200, ${coneAlpha})`;
+        ctx.beginPath();
+        ctx.moveTo(leftCone.points[0].x, leftCone.points[0].y);
+        for (let i = 1; i < leftCone.points.length; i++) {
+            ctx.lineTo(leftCone.points[i].x, leftCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
 
-    ctx.filter = 'none';
+        ctx.beginPath();
+        ctx.moveTo(rightCone.points[0].x, rightCone.points[0].y);
+        for (let i = 1; i < rightCone.points.length; i++) {
+            ctx.lineTo(rightCone.points[i].x, rightCone.points[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
 
-        ctx.fillStyle = 'rgba(255, 255, 200, 0.15)';
+        ctx.filter = 'none';
+
+        ctx.fillStyle = `rgba(255, 255, 200, ${innerAlpha})`;
         ctx.beginPath();
         ctx.moveTo(leftCone.points[0].x, leftCone.points[0].y);
         for (let i = 1; i < leftCone.points.length; i++) {

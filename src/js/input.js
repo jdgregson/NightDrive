@@ -9,12 +9,17 @@ window.addEventListener('keydown', e => {
         hKeyPressed = true;
         headlightsOn = !headlightsOn;
     }
+    if (key === 'b' && !bKeyPressed) {
+        bKeyPressed = true;
+        brightsOn = !brightsOn;
+    }
 });
 window.addEventListener('keyup', e => {
     const key = e.key.toLowerCase();
     keys[key] = false;
     if (key === 'l') lKeyPressed = false;
     if (key === 'h') hKeyPressed = false;
+    if (key === 'b') bKeyPressed = false;
 });
 
 canvas.addEventListener('mousedown', () => {
