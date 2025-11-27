@@ -12,7 +12,8 @@ function createPoliceCar(x, y, followTarget = null) {
         turnSpeed: 0.05,
         vx: 0,
         vy: 0,
-        followTarget: followTarget
+        followTarget: followTarget,
+        lightOffset: Math.floor(Math.random() * 12)
     };
 }
 
@@ -29,7 +30,7 @@ function drawPoliceCar(car) {
     let blueOn = false;
 
     if (lightsOn) {
-        const frame = Math.floor(Date.now() / 50) % 12;
+        const frame = (Math.floor(Date.now() / 50) + car.lightOffset) % 12;
         if (frame < 2 || (frame >= 3 && frame < 5)) {
             redOn = true;
         } else if (frame >= 6 && frame < 8 || (frame >= 9 && frame < 11)) {
@@ -110,12 +111,14 @@ function drawPoliceCar(car) {
         ctx.fillRect(6, car.height / 2 - 2, 8, 3);
     }
 
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(-car.width / 2 + 2, -car.height / 2 + 2, 6, 3);
-    ctx.fillRect(car.width / 2 - 8, -car.height / 2 + 2, 6, 3);
+    if (headlightsOn) {
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(-car.width / 2 + 2, -car.height / 2 + 2, 6, 3);
+        ctx.fillRect(car.width / 2 - 8, -car.height / 2 + 2, 6, 3);
+    }
     ctx.restore();
 
-    {
+    if (headlightsOn) {
         ctx.globalCompositeOperation = 'lighter';
 
         const tailLeftPos = {
@@ -127,11 +130,15 @@ function drawPoliceCar(car) {
             y: car.y - sin * (car.height / 2 - 3) - cos * (car.width / 2 - 5)
         };
 
+        const leftBrightness = redOn ? 0.9 : 0.3;
+        const rightBrightness = blueOn ? 0.9 : 0.3;
+
         ctx.filter = 'blur(6px)';
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.fillStyle = `rgba(255, 0, 0, ${leftBrightness})`;
         ctx.beginPath();
         ctx.arc(tailLeftPos.x, tailLeftPos.y, 8, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = `rgba(255, 0, 0, ${rightBrightness})`;
         ctx.beginPath();
         ctx.arc(tailRightPos.x, tailRightPos.y, 8, 0, Math.PI * 2);
         ctx.fill();
