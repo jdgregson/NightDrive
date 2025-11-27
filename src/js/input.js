@@ -1,0 +1,31 @@
+window.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    keys[key] = true;
+    if (key === 'l' && !lKeyPressed) {
+        lKeyPressed = true;
+        lightsOn = !lightsOn;
+    }
+    if (key === 'h' && !hKeyPressed) {
+        hKeyPressed = true;
+        headlightsOn = !headlightsOn;
+    }
+});
+window.addEventListener('keyup', e => {
+    const key = e.key.toLowerCase();
+    keys[key] = false;
+    if (key === 'l') lKeyPressed = false;
+    if (key === 'h') hKeyPressed = false;
+});
+
+canvas.addEventListener('mousedown', () => {
+    spotlightActive = true;
+});
+
+canvas.addEventListener('mouseup', () => {
+    spotlightActive = false;
+});
+
+canvas.addEventListener('mousemove', e => {
+    mouseWorldX = e.clientX + camera.x;
+    mouseWorldY = e.clientY + camera.y;
+});
