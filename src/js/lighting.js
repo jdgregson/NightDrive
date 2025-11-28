@@ -19,14 +19,22 @@ function getAllEdges(cars = []) {
     for (const obj of interactiveObjects) {
         if (obj.hit) continue;
         if (obj.x < minX || obj.x > maxX || obj.y < minY || obj.y > maxY) continue;
-        const size = obj.type === 'mailbox' ? 20 : 18;
-        const hsize = size / 2;
-        edges.push(
-            [{ x: obj.x - hsize, y: obj.y - hsize }, { x: obj.x + hsize, y: obj.y - hsize }],
-            [{ x: obj.x + hsize, y: obj.y - hsize }, { x: obj.x + hsize, y: obj.y + hsize }],
-            [{ x: obj.x + hsize, y: obj.y + hsize }, { x: obj.x - hsize, y: obj.y + hsize }],
-            [{ x: obj.x - hsize, y: obj.y + hsize }, { x: obj.x - hsize, y: obj.y - hsize }]
-        );
+        if (obj.type === 'mailbox') {
+            edges.push(
+                [{ x: obj.x - 4, y: obj.y - 10 }, { x: obj.x + 4, y: obj.y - 10 }],
+                [{ x: obj.x + 4, y: obj.y - 10 }, { x: obj.x + 4, y: obj.y + 2 }],
+                [{ x: obj.x + 4, y: obj.y + 2 }, { x: obj.x - 4, y: obj.y + 2 }],
+                [{ x: obj.x - 4, y: obj.y + 2 }, { x: obj.x - 4, y: obj.y - 10 }]
+            );
+        } else {
+            const hsize = 9;
+            edges.push(
+                [{ x: obj.x - hsize, y: obj.y - hsize }, { x: obj.x + hsize, y: obj.y - hsize }],
+                [{ x: obj.x + hsize, y: obj.y - hsize }, { x: obj.x + hsize, y: obj.y + hsize }],
+                [{ x: obj.x + hsize, y: obj.y + hsize }, { x: obj.x - hsize, y: obj.y + hsize }],
+                [{ x: obj.x - hsize, y: obj.y + hsize }, { x: obj.x - hsize, y: obj.y - hsize }]
+            );
+        }
     }
     for (const c of cars) {
         const cos = Math.cos(c.angle);

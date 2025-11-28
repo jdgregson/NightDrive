@@ -82,12 +82,51 @@ function checkCollision(carObj, otherCar) {
                 carObj.x += Math.cos(angle) * pushDist;
                 carObj.y += Math.sin(angle) * pushDist;
                 
+                const now = performance.now();
+                if (now - lastSparkTime > 200) {
+                    lastSparkTime = now;
+                    for (let i = 0; i < 3; i++) {
+                        debris.push({
+                            x: corner.x,
+                            y: corner.y,
+                            vx: (Math.random() - 0.5) * 4,
+                            vy: (Math.random() - 0.5) * 4,
+                            size: 2,
+                            color: i < 2 ? '#ffaa00' : '#ffff00',
+                            rotation: 0,
+                            rotSpeed: 0,
+                            lifetime: 20,
+                            glow: true
+                        });
+                    }
+                }
+                
                 return true;
             }
         }
     }
 
     if (otherCar && checkCarToCarCollision(carObj, otherCar)) {
+        const now = performance.now();
+        if (now - lastSparkTime > 200) {
+            lastSparkTime = now;
+            const midX = (carObj.x + otherCar.x) / 2;
+            const midY = (carObj.y + otherCar.y) / 2;
+            for (let i = 0; i < 3; i++) {
+                debris.push({
+                    x: midX,
+                    y: midY,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    size: 2,
+                    color: i < 2 ? '#ffaa00' : '#ffff00',
+                    rotation: 0,
+                    rotSpeed: 0,
+                    lifetime: 20,
+                    glow: true
+                });
+            }
+        }
         profiler.end('collision_check');
         return true;
     }
@@ -104,15 +143,39 @@ function checkObjectCollision(carObj) {
     for (const obj of interactiveObjects) {
         if (obj.hit || Math.abs(obj.x - carObj.x) > buffer || Math.abs(obj.y - carObj.y) > buffer) continue;
 
-        const size = obj.type === 'mailbox' ? 20 : 18;
         let hit = false;
         
         for (const corner of corners) {
-            const dist = Math.hypot(corner.x - obj.x, corner.y - obj.y);
-            if (dist < size) {
-                hit = true;
-                break;
+            if (obj.type === 'mailbox') {
+                if (corner.x >= obj.x - 4 && corner.x <= obj.x + 4 &&
+                    corner.y >= obj.y - 10 && corner.y <= obj.y + 2) {
+                    hit = true;
+                    break;
+                }
+            } else {
+                const dist = Math.hypot(corner.x - obj.x, corner.y - obj.y);
+                if (dist < 9) {
+                    hit = true;
+                    break;
+                }
             }
+        }
+        
+        if (!hit) {
+            let inside = true;
+            for (let i = 0; i < corners.length; i++) {
+                const j = (i + 1) % corners.length;
+                const edge = {
+                    x1: corners[i].x, y1: corners[i].y,
+                    x2: corners[j].x, y2: corners[j].y
+                };
+                const cross = (edge.x2 - edge.x1) * (obj.y - edge.y1) - (edge.y2 - edge.y1) * (obj.x - edge.x1);
+                if (cross > 0) {
+                    inside = false;
+                    break;
+                }
+            }
+            if (inside) hit = true;
         }
 
         if (hit && carSpeed > 0.5) {
@@ -120,9 +183,24 @@ function checkObjectCollision(carObj) {
             const angle = Math.atan2(obj.y - carObj.y, obj.x - carObj.x);
             const force = carSpeed * 2;
 
+            for (let i = 0; i < 3; i++) {
+                debris.push({
+                    x: obj.x,
+                    y: obj.y,
+                    vx: Math.cos(angle + (Math.random() - 0.5) * 1) * (carSpeed * 0.8),
+                    vy: Math.sin(angle + (Math.random() - 0.5) * 1) * (carSpeed * 0.8),
+                    size: 2,
+                    color: i < 2 ? '#ffaa00' : '#ffff00',
+                    rotation: 0,
+                    rotSpeed: 0,
+                    lifetime: 20,
+                    glow: true
+                });
+            }
+
             if (obj.type === 'mailbox') {
                 for (let i = 0; i < 8; i++) {
-                    const colors = ['#ffffff', '#ff6b6b', '#4ecdc4', '#ffe66d'];
+                    const colors = ['#1a1a1a', '#2a2a2a', '#3a3a3a', '#4a4a4a', '#5a5a5a'];
                     debris.push({
                         x: obj.x,
                         y: obj.y,
@@ -135,7 +213,7 @@ function checkObjectCollision(carObj) {
                     });
                 }
             } else {
-                const trashColors = ['#8b4513', '#a0522d', '#cd853f', '#daa520', '#b8860b'];
+                const trashColors = ['#000000', '#0a0a0a', '#1a1a1a', '#2a2a2a', '#3a3a3a', '#4a4a4a'];
                 for (let i = 0; i < 12; i++) {
                     debris.push({
                         x: obj.x,

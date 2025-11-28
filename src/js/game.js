@@ -1,7 +1,7 @@
 const playerCar = createPoliceCar(0, 0);
 const aiCar = createPoliceCar(-150, 0);
 const aiCar2 = createPoliceCar(150, 150, playerCar);
-const regularCar = createRegularCar(-400, -300, '#1a4d8f', playerCar);
+const regularCar = createRegularCar(-400, -300, '#1a4d8f', aiCar2);
 const car = playerCar;
 const aiCars = [aiCar, aiCar2];
 
@@ -83,13 +83,20 @@ function update() {
     profiler.end('update_cars');
 
     profiler.start('update_debris');
-    for (const d of debris) {
+    for (let i = debris.length - 1; i >= 0; i--) {
+        const d = debris[i];
         d.x += d.vx;
         d.y += d.vy;
         d.vx *= 0.98;
         d.vy *= 0.98;
         d.rotation += d.rotSpeed;
         d.rotSpeed *= 0.99;
+        if (d.lifetime !== undefined) {
+            d.lifetime--;
+            if (d.lifetime <= 0) {
+                debris.splice(i, 1);
+            }
+        }
     }
     profiler.end('update_debris');
 

@@ -20,15 +20,24 @@ function draw() {
 
     for (const obj of interactiveObjects) {
         if (obj.hit) continue;
-        const size = obj.type === 'mailbox' ? 20 : 18;
-        ctx.fillRect(obj.x - size/2, obj.y - size/2, size, size);
+        if (obj.type === 'mailbox') {
+            ctx.fillRect(obj.x - 4, obj.y - 10, 8, 12);
+        } else {
+            if (obj.shape === 'round') {
+                ctx.beginPath();
+                ctx.arc(obj.x, obj.y, 9, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.fillRect(obj.x - 9, obj.y - 9, 18, 18);
+            }
+        }
     }
 
     for (const d of debris) {
         ctx.save();
         ctx.translate(d.x, d.y);
         ctx.rotate(d.rotation);
-        ctx.fillStyle = '#000000';
+        ctx.fillStyle = d.color || '#000000';
         if (d.isContainer) {
             if (d.shape === 'round') {
                 ctx.beginPath();
@@ -44,6 +53,19 @@ function draw() {
     }
 
     ctx.globalCompositeOperation = 'lighter';
+
+    for (const d of debris) {
+        if (!d.glow) continue;
+        const alpha = d.lifetime / 20;
+        ctx.filter = 'blur(4px)';
+        ctx.fillStyle = d.color;
+        ctx.globalAlpha = alpha * 0.8;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.size * 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.filter = 'none';
+    ctx.globalAlpha = 1;
 
     const headlightOffset = 35;
     const leftLight = {

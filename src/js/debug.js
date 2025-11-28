@@ -55,10 +55,13 @@ function drawDebugBoundingBoxes() {
 
     for (const obj of interactiveObjects) {
         if (obj.hit) continue;
-        const size = obj.type === 'mailbox' ? 20 : 18;
-        ctx.beginPath();
-        ctx.arc(obj.x, obj.y, size, 0, Math.PI * 2);
-        ctx.stroke();
+        if (obj.type === 'mailbox') {
+            ctx.strokeRect(obj.x - 4, obj.y - 10, 8, 12);
+        } else {
+            ctx.beginPath();
+            ctx.arc(obj.x, obj.y, 9, 0, Math.PI * 2);
+            ctx.stroke();
+        }
     }
 
     ctx.strokeRect(
