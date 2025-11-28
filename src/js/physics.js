@@ -85,18 +85,21 @@ function checkCollision(carObj, otherCar) {
                 const now = performance.now();
                 if (now - lastSparkTime > 200) {
                     lastSparkTime = now;
-                    for (let i = 0; i < 3; i++) {
+                    const sparkAngle = Math.atan2(carObj.y - (obs.y + obs.height / 2), carObj.x - (obs.x + obs.width / 2));
+                    for (let i = 0; i < 5; i++) {
+                        const spread = (Math.random() - 0.5) * Math.PI / 2;
+                        const speed = 2 + Math.random() * 2;
                         debris.push({
                             x: corner.x,
                             y: corner.y,
-                            vx: (Math.random() - 0.5) * 4,
-                            vy: (Math.random() - 0.5) * 4,
+                            vx: Math.cos(sparkAngle + spread) * speed,
+                            vy: Math.sin(sparkAngle + spread) * speed,
                             size: 2,
-                            color: i < 2 ? '#ffaa00' : '#ffff00',
+                            color: i < 2 ? '#ffaa00' : (i < 3 ? '#ffff00' : '#1a1a1a'),
                             rotation: 0,
                             rotSpeed: 0,
                             lifetime: 20,
-                            glow: true
+                            glow: i < 3
                         });
                     }
                 }
@@ -112,18 +115,18 @@ function checkCollision(carObj, otherCar) {
             lastSparkTime = now;
             const midX = (carObj.x + otherCar.x) / 2;
             const midY = (carObj.y + otherCar.y) / 2;
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 5; i++) {
                 debris.push({
                     x: midX,
                     y: midY,
                     vx: (Math.random() - 0.5) * 6,
                     vy: (Math.random() - 0.5) * 6,
                     size: 2,
-                    color: i < 2 ? '#ffaa00' : '#ffff00',
+                    color: i < 2 ? '#ffaa00' : (i < 3 ? '#ffff00' : '#1a1a1a'),
                     rotation: 0,
                     rotSpeed: 0,
                     lifetime: 20,
-                    glow: true
+                    glow: i < 3
                 });
             }
         }
@@ -183,18 +186,20 @@ function checkObjectCollision(carObj) {
             const angle = Math.atan2(obj.y - carObj.y, obj.x - carObj.x);
             const force = carSpeed * 2;
 
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 5; i++) {
+                const spread = (Math.random() - 0.5) * Math.PI / 3;
+                const speed = carSpeed * 0.8;
                 debris.push({
                     x: obj.x,
                     y: obj.y,
-                    vx: Math.cos(angle + (Math.random() - 0.5) * 1) * (carSpeed * 0.8),
-                    vy: Math.sin(angle + (Math.random() - 0.5) * 1) * (carSpeed * 0.8),
+                    vx: Math.cos(angle + spread) * speed,
+                    vy: Math.sin(angle + spread) * speed,
                     size: 2,
-                    color: i < 2 ? '#ffaa00' : '#ffff00',
+                    color: i < 2 ? '#ffaa00' : (i < 3 ? '#ffff00' : '#1a1a1a'),
                     rotation: 0,
                     rotSpeed: 0,
                     lifetime: 20,
-                    glow: true
+                    glow: i < 3
                 });
             }
 
