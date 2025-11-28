@@ -122,10 +122,24 @@ function drawFullMap() {
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     
     for (const road of roadSystem.roads) {
-        minX = Math.min(minX, road.x1, road.x2);
-        maxX = Math.max(maxX, road.x1, road.x2);
-        minY = Math.min(minY, road.y1, road.y2);
-        maxY = Math.max(maxY, road.y1, road.y2);
+        if (road.isCurved) {
+            minX = Math.min(minX, road.centerX - road.radius);
+            maxX = Math.max(maxX, road.centerX + road.radius);
+            minY = Math.min(minY, road.centerY - road.radius);
+            maxY = Math.max(maxY, road.centerY + road.radius);
+        } else if (road.isPath) {
+            for (const seg of road.segments) {
+                minX = Math.min(minX, seg.p1.x, seg.p2.x);
+                maxX = Math.max(maxX, seg.p1.x, seg.p2.x);
+                minY = Math.min(minY, seg.p1.y, seg.p2.y);
+                maxY = Math.max(maxY, seg.p1.y, seg.p2.y);
+            }
+        } else {
+            minX = Math.min(minX, road.x1, road.x2);
+            maxX = Math.max(maxX, road.x1, road.x2);
+            minY = Math.min(minY, road.y1, road.y2);
+            maxY = Math.max(maxY, road.y1, road.y2);
+        }
     }
     for (const building of obstacles) {
         minX = Math.min(minX, building.x);
@@ -157,13 +171,37 @@ function drawFullMap() {
         );
     }
     
-    ctx.strokeStyle = '#555';
     ctx.lineWidth = 2;
     for (const road of roadSystem.roads) {
-        ctx.beginPath();
-        ctx.moveTo(offsetX + road.x1 * scale, offsetY + road.y1 * scale);
-        ctx.lineTo(offsetX + road.x2 * scale, offsetY + road.y2 * scale);
-        ctx.stroke();
+        if (road.isCurved) {
+            ctx.strokeStyle = road.roadType.color;
+            ctx.lineWidth = road.width * scale;
+            ctx.beginPath();
+            ctx.arc(offsetX + road.centerX * scale, offsetY + road.centerY * scale, road.radius * scale, road.startAngle, road.endAngle);
+            ctx.stroke();
+        } else if (road.isPath) {
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(offsetX + road.segments[0].p1.x * scale, offsetY + road.segments[0].p1.y * scale);
+            for (const seg of road.segments) {
+                ctx.bezierCurveTo(
+                    offsetX + seg.cp1.x * scale, offsetY + seg.cp1.y * scale,
+                    offsetX + seg.cp2.x * scale, offsetY + seg.cp2.y * scale,
+                    offsetX + seg.p2.x * scale, offsetY + seg.p2.y * scale
+                );
+            }
+            ctx.stroke();
+        } else {
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(offsetX + road.x1 * scale, offsetY + road.y1 * scale);
+            ctx.lineTo(offsetX + road.x2 * scale, offsetY + road.y2 * scale);
+            ctx.stroke();
+        }
     }
     
     ctx.fillStyle = '#ff0000';
@@ -210,19 +248,54 @@ function drawMinimap() {
     }
     
     // Draw roads centered on player
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 2;
     for (const road of roadSystem.roads) {
-        ctx.beginPath();
-        ctx.moveTo(
-            minimapX + (road.x1 - playerCar.x + viewRadius) * scale,
-            minimapY + (road.y1 - playerCar.y + viewRadius) * scale
-        );
-        ctx.lineTo(
-            minimapX + (road.x2 - playerCar.x + viewRadius) * scale,
-            minimapY + (road.y2 - playerCar.y + viewRadius) * scale
-        );
-        ctx.stroke();
+        if (road.isCurved) {
+            ctx.strokeStyle = road.roadType.color;
+            ctx.lineWidth = road.width * scale;
+            ctx.beginPath();
+            ctx.arc(
+                minimapX + (road.centerX - playerCar.x + viewRadius) * scale,
+                minimapY + (road.centerY - playerCar.y + viewRadius) * scale,
+                road.radius * scale,
+                road.startAngle,
+                road.endAngle
+            );
+            ctx.stroke();
+        } else if (road.isPath) {
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(
+                minimapX + (road.segments[0].p1.x - playerCar.x + viewRadius) * scale,
+                minimapY + (road.segments[0].p1.y - playerCar.y + viewRadius) * scale
+            );
+            for (const seg of road.segments) {
+                ctx.bezierCurveTo(
+                    minimapX + (seg.cp1.x - playerCar.x + viewRadius) * scale,
+                    minimapY + (seg.cp1.y - playerCar.y + viewRadius) * scale,
+                    minimapX + (seg.cp2.x - playerCar.x + viewRadius) * scale,
+                    minimapY + (seg.cp2.y - playerCar.y + viewRadius) * scale,
+                    minimapX + (seg.p2.x - playerCar.x + viewRadius) * scale,
+                    minimapY + (seg.p2.y - playerCar.y + viewRadius) * scale
+                );
+            }
+            ctx.stroke();
+        } else {
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(
+                minimapX + (road.x1 - playerCar.x + viewRadius) * scale,
+                minimapY + (road.y1 - playerCar.y + viewRadius) * scale
+            );
+            ctx.lineTo(
+                minimapX + (road.x2 - playerCar.x + viewRadius) * scale,
+                minimapY + (road.y2 - playerCar.y + viewRadius) * scale
+            );
+            ctx.stroke();
+        }
     }
     
     // Player at center

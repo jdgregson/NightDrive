@@ -33,8 +33,116 @@ class RoadSystem {
             angle,
             width: roadType.width,
             type,
+            roadType,
+            isCurved: false
+        });
+    }
+
+    // Add a curved road: center point, radius, start angle, end angle, type
+    addCurvedRoad(centerX, centerY, radius, startAngle, endAngle, type = 'FOUR_LANE') {
+        const roadType = ROAD_TYPES[type];
+        const arcLength = Math.abs(endAngle - startAngle) * radius;
+
+        this.roads.push({
+            isCurved: true,
+            centerX, centerY,
+            radius,
+            startAngle,
+            endAngle,
+            arcLength,
+            width: roadType.width,
+            type,
             roadType
         });
+    }
+
+    // Add a path-based road with multiple segments (straight and curved)
+    addPath(points, type = 'FOUR_LANE') {
+        const roadType = ROAD_TYPES[type];
+        const segments = [];
+        let totalLength = 0;
+
+        for (let i = 0; i < points.length - 1; i++) {
+            const p0 = points[Math.max(0, i - 1)];
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const p3 = points[Math.min(points.length - 1, i + 2)];
+
+            // Check if segment crosses a 4-lane road (within 50 units of grid lines)
+            const crossesVertical = (Math.abs(p1.x - 1200) < 50 && Math.abs(p2.x - 1200) < 50) ||
+                                   (Math.abs(p1.x - 0) < 50 && Math.abs(p2.x - 0) < 50) ||
+                                   (Math.abs(p1.x - (-1200)) < 50 && Math.abs(p2.x - (-1200)) < 50);
+            const crossesHorizontal = (Math.abs(p1.y - 1200) < 50 && Math.abs(p2.y - 1200) < 50) ||
+                                     (Math.abs(p1.y - 0) < 50 && Math.abs(p2.y - 0) < 50) ||
+                                     (Math.abs(p1.y - (-1200)) < 50 && Math.abs(p2.y - (-1200)) < 50);
+
+            let cp1, cp2;
+            if (i === 0 || crossesVertical || crossesHorizontal) {
+                // Straight segment
+                cp1 = { x: p1.x + (p2.x - p1.x) * 0.33, y: p1.y + (p2.y - p1.y) * 0.33 };
+                cp2 = { x: p2.x - (p2.x - p1.x) * 0.33, y: p2.y - (p2.y - p1.y) * 0.33 };
+            } else if (i === points.length - 2) {
+                // Straight end
+                cp1 = { x: p1.x + (p2.x - p1.x) * 0.33, y: p1.y + (p2.y - p1.y) * 0.33 };
+                cp2 = { x: p2.x - (p2.x - p1.x) * 0.33, y: p2.y - (p2.y - p1.y) * 0.33 };
+            } else {
+                // Curved segment
+                cp1 = { x: p1.x + (p2.x - p0.x) * 0.3, y: p1.y + (p2.y - p0.y) * 0.3 };
+                cp2 = { x: p2.x - (p3.x - p1.x) * 0.3, y: p2.y - (p3.y - p1.y) * 0.3 };
+            }
+
+            const segment = {
+                p1, p2, cp1, cp2,
+                startDist: totalLength
+            };
+
+            segment.length = this.estimateBezierLength(segment.p1, segment.cp1, segment.cp2, segment.p2);
+            totalLength += segment.length;
+            segments.push(segment);
+        }
+
+        this.roads.push({
+            isPath: true,
+            segments,
+            totalLength,
+            width: roadType.width,
+            type,
+            roadType
+        });
+    }
+
+    estimateBezierLength(p0, p1, p2, p3, steps = 20) {
+        let length = 0;
+        let prevX = p0.x, prevY = p0.y;
+        for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            const point = this.bezierPoint(p0, p1, p2, p3, t);
+            length += Math.sqrt((point.x - prevX) ** 2 + (point.y - prevY) ** 2);
+            prevX = point.x;
+            prevY = point.y;
+        }
+        return length;
+    }
+
+    bezierPoint(p0, p1, p2, p3, t) {
+        const mt = 1 - t;
+        const mt2 = mt * mt;
+        const mt3 = mt2 * mt;
+        const t2 = t * t;
+        const t3 = t2 * t;
+        return {
+            x: mt3 * p0.x + 3 * mt2 * t * p1.x + 3 * mt * t2 * p2.x + t3 * p3.x,
+            y: mt3 * p0.y + 3 * mt2 * t * p1.y + 3 * mt * t2 * p2.y + t3 * p3.y
+        };
+    }
+
+    bezierTangent(p0, p1, p2, p3, t) {
+        const mt = 1 - t;
+        const mt2 = mt * mt;
+        const t2 = t * t;
+        const dx = 3 * mt2 * (p1.x - p0.x) + 6 * mt * t * (p2.x - p1.x) + 3 * t2 * (p3.x - p2.x);
+        const dy = 3 * mt2 * (p1.y - p0.y) + 6 * mt * t * (p2.y - p1.y) + 3 * t2 * (p3.y - p2.y);
+        return Math.atan2(dy, dx);
     }
 
     // Auto-detect and create intersections where roads cross
@@ -65,7 +173,7 @@ class RoadSystem {
             const bothFourLane = road1.type === 'FOUR_LANE' && road2.type === 'FOUR_LANE';
             const intersectionType = bothFourLane ? 'FULL' : 'T_JUNCTION';
             const size = bothFourLane ? road1.width : Math.max(road1.width, road2.width);
-            
+
             return {
                 x: x1 + t * (x2 - x1),
                 y: y1 + t * (y2 - y1),
@@ -88,12 +196,69 @@ class RoadSystem {
     }
 
     isPointOnRoad(x, y, road) {
+        if (road.isCurved) {
+            return this.isPointOnCurvedRoad(x, y, road);
+        }
+        if (road.isPath) {
+            return this.isPointOnPath(x, y, road);
+        }
+
         const dx = x - road.centerX;
         const dy = y - road.centerY;
         const rotX = dx * Math.cos(-road.angle) - dy * Math.sin(-road.angle);
         const rotY = dx * Math.sin(-road.angle) + dy * Math.cos(-road.angle);
 
         return Math.abs(rotX) <= road.length / 2 && Math.abs(rotY) <= road.width / 2;
+    }
+
+    isPointOnPath(x, y, road) {
+        for (const seg of road.segments) {
+            const closest = this.closestPointOnBezier(x, y, seg.p1, seg.cp1, seg.cp2, seg.p2);
+            if (closest.distance < road.width / 2) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    closestPointOnBezier(x, y, p0, p1, p2, p3, samples = 20) {
+        let minDist = Infinity;
+        let bestT = 0;
+        for (let i = 0; i <= samples; i++) {
+            const t = i / samples;
+            const point = this.bezierPoint(p0, p1, p2, p3, t);
+            const dist = Math.sqrt((x - point.x) ** 2 + (y - point.y) ** 2);
+            if (dist < minDist) {
+                minDist = dist;
+                bestT = t;
+            }
+        }
+        return { t: bestT, distance: minDist };
+    }
+
+    isPointOnCurvedRoad(x, y, road) {
+        const dx = x - road.centerX;
+        const dy = y - road.centerY;
+        const distFromCenter = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+
+        // Check if within road width
+        if (Math.abs(distFromCenter - road.radius) > road.width / 2) return false;
+
+        // Normalize angle to check if within arc range
+        let normalizedAngle = angle;
+        let start = road.startAngle;
+        let end = road.endAngle;
+
+        // Handle angle wrapping
+        while (normalizedAngle < start) normalizedAngle += Math.PI * 2;
+        while (normalizedAngle > start + Math.PI * 2) normalizedAngle -= Math.PI * 2;
+
+        if (end > start) {
+            return normalizedAngle >= start && normalizedAngle <= end;
+        } else {
+            return normalizedAngle >= start || normalizedAngle <= end;
+        }
     }
 
     // Get lane center for a car to follow
@@ -133,32 +298,43 @@ class RoadSystem {
             car.laneAssistTimer = 0;
             return null;
         }
-        
+
         const road = result.road;
-        
-        // Check if car is aligned with road direction (either direction)
-        let angleDiff = car.angle - road.angle;
+        let roadAngle, perpDist;
+
+        if (road.isPath) {
+            const pathInfo = this.getPathInfo(car.x, car.y, road);
+            if (!pathInfo) return null;
+            roadAngle = pathInfo.angle;
+            perpDist = pathInfo.perpDist;
+        } else if (road.isCurved) {
+            const dx = car.x - road.centerX;
+            const dy = car.y - road.centerY;
+            const angle = Math.atan2(dy, dx);
+            roadAngle = angle + Math.PI / 2;
+            perpDist = (Math.sqrt(dx * dx + dy * dy) - road.radius);
+        } else {
+            roadAngle = road.angle;
+            const dx = car.x - road.centerX;
+            const dy = car.y - road.centerY;
+            perpDist = -dx * Math.sin(road.angle) + dy * Math.cos(road.angle);
+        }
+
+        // Check if car is aligned with road direction
+        let angleDiff = car.angle - roadAngle;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        
-        // Check both forward and reverse direction
+
         const alignedForward = Math.abs(angleDiff) < Math.PI / 6;
         const alignedReverse = Math.abs(Math.abs(angleDiff) - Math.PI) < Math.PI / 6;
-        
+
         if (!alignedForward && !alignedReverse) {
             car.laneAssistTimer = 0;
             return null;
         }
-        
-        const dx = car.x - road.centerX;
-        const dy = car.y - road.centerY;
-        let perpDist = -dx * Math.sin(road.angle) + dy * Math.cos(road.angle);
-        
-        // Flip perpendicular distance if going reverse direction
-        if (alignedReverse) {
-            perpDist = -perpDist;
-        }
-        
+
+        if (alignedReverse) perpDist = -perpDist;
+
         // Find nearest lane center
         const lanes = road.roadType.lanes;
         let nearestLane = lanes[0];
@@ -170,22 +346,46 @@ class RoadSystem {
                 nearestLane = lane;
             }
         }
-        
+
         if (minDist < 40) {
             if (!car.laneAssistTimer) car.laneAssistTimer = 0;
             car.laneAssistTimer++;
-            
-            // Only assist after 60 frames (~1 second at 60fps)
+
             if (car.laneAssistTimer > 60) {
                 const offsetFromLane = perpDist - nearestLane;
                 const correctionAngle = -Math.atan2(offsetFromLane, 100);
-                const effectiveRoadAngle = alignedReverse ? road.angle + Math.PI : road.angle;
+                const effectiveRoadAngle = alignedReverse ? roadAngle + Math.PI : roadAngle;
                 return { roadAngle: effectiveRoadAngle, correctionAngle, strength: 1 - minDist / 40 };
             }
         } else {
             car.laneAssistTimer = 0;
         }
         return null;
+    }
+
+    getPathInfo(x, y, road) {
+        let bestSeg = null;
+        let bestT = 0;
+        let minDist = Infinity;
+
+        for (const seg of road.segments) {
+            const closest = this.closestPointOnBezier(x, y, seg.p1, seg.cp1, seg.cp2, seg.p2);
+            if (closest.distance < minDist) {
+                minDist = closest.distance;
+                bestT = closest.t;
+                bestSeg = seg;
+            }
+        }
+
+        if (!bestSeg) return null;
+
+        const angle = this.bezierTangent(bestSeg.p1, bestSeg.cp1, bestSeg.cp2, bestSeg.p2, bestT);
+        const point = this.bezierPoint(bestSeg.p1, bestSeg.cp1, bestSeg.cp2, bestSeg.p2, bestT);
+        const dx = x - point.x;
+        const dy = y - point.y;
+        const perpDist = -dx * Math.sin(angle) + dy * Math.cos(angle);
+
+        return { angle, perpDist, point };
     }
 
     // Check if car is at an intersection
@@ -201,27 +401,42 @@ class RoadSystem {
 
     // Render all roads
     draw(ctx) {
-        // Draw road surfaces with clipping at T-junctions
+        // Draw path roads first (underneath everything)
         for (const road of this.roads) {
+            if (road.isPath) {
+                this.drawPathRoad(ctx, road);
+            }
+        }
+
+        // Draw 4-lane and curved road surfaces
+        for (const road of this.roads) {
+            if (road.isCurved) {
+                this.drawCurvedRoad(ctx, road);
+                continue;
+            }
+            if (road.isPath) {
+                continue;
+            }
+
             const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
             const tJunctions = roadIntersections.filter(i => i.type === 'T_JUNCTION');
-            
+
             ctx.save();
             ctx.translate(road.centerX, road.centerY);
             ctx.rotate(road.angle);
 
             const hl = road.length / 2;
             const hw = road.width / 2;
-            
+
             // Clip smaller roads at T-junctions
             if (tJunctions.length > 0) {
                 ctx.beginPath();
                 ctx.rect(-hl, -hw - 20, road.length, road.width + 40);
-                
+
                 for (const tj of tJunctions) {
                     const [road1, road2] = tj.roads;
                     const smallerRoad = road1.width < road2.width ? road1 : road2;
-                    
+
                     if (smallerRoad === road) {
                         const largerRoad = road1.width >= road2.width ? road1 : road2;
                         const distFromCenter = (tj.x - road.centerX) * Math.cos(road.angle) + (tj.y - road.centerY) * Math.sin(road.angle);
@@ -258,7 +473,7 @@ class RoadSystem {
                 const stripeWidth = 8;
                 const stripeGap = 8;
                 const stripeUnit = stripeWidth + stripeGap;
-                
+
                 // Calculate centered offset (drop first and last stripe)
                 const numStripes = Math.floor(intersection.size / stripeUnit) - 2;
                 const totalWidth = numStripes * stripeUnit - stripeGap;
@@ -327,7 +542,72 @@ class RoadSystem {
         ctx.globalCompositeOperation = 'source-over';
     }
 
+    drawPathRoad(ctx, road) {
+        const hw = road.width / 2;
+
+        // Draw shoulders
+        ctx.strokeStyle = road.roadType.edgeColor;
+        ctx.lineWidth = road.width + 40;
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
+        for (const seg of road.segments) {
+            ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+        }
+        ctx.stroke();
+
+        // Draw road surface
+        ctx.strokeStyle = road.roadType.color;
+        ctx.lineWidth = road.width;
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
+        for (const seg of road.segments) {
+            ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+        }
+        ctx.stroke();
+    }
+
+    drawCurvedRoad(ctx, road) {
+        const hw = road.width / 2;
+        const innerRadius = road.radius - hw;
+        const outerRadius = road.radius + hw;
+        const shoulderInner = innerRadius - 20;
+        const shoulderOuter = outerRadius + 20;
+
+        // Draw shoulders
+        ctx.fillStyle = road.roadType.edgeColor;
+        ctx.beginPath();
+        ctx.arc(road.centerX, road.centerY, shoulderInner, road.startAngle, road.endAngle);
+        ctx.arc(road.centerX, road.centerY, innerRadius, road.endAngle, road.startAngle, true);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(road.centerX, road.centerY, outerRadius, road.startAngle, road.endAngle);
+        ctx.arc(road.centerX, road.centerY, shoulderOuter, road.endAngle, road.startAngle, true);
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw road surface
+        ctx.fillStyle = road.roadType.color;
+        ctx.beginPath();
+        ctx.arc(road.centerX, road.centerY, innerRadius, road.startAngle, road.endAngle);
+        ctx.arc(road.centerX, road.centerY, outerRadius, road.endAngle, road.startAngle, true);
+        ctx.closePath();
+        ctx.fill();
+    }
+
     drawRoadSegmentMarkings(ctx, road) {
+        if (road.isCurved) {
+            this.drawCurvedRoadMarkings(ctx, road);
+            return;
+        }
+        if (road.isPath) {
+            this.drawPathRoadMarkings(ctx, road);
+            return;
+        }
         // Find intersections on this road
         const roadIntersections = this.intersections.filter(i =>
             i.roads.includes(road)
@@ -361,8 +641,35 @@ class RoadSystem {
         }
         segments.push({ start: lastEnd, end: hl - 20 });
 
+        // Find path roads that connect to this 4-lane road
+        const pathConnections = [];
+        for (const pathRoad of this.roads) {
+            if (pathRoad.isPath) {
+                const startDist = Math.sqrt((pathRoad.segments[0].p1.x - road.centerX) ** 2 + (pathRoad.segments[0].p1.y - road.centerY) ** 2);
+                const endDist = Math.sqrt((pathRoad.segments[pathRoad.segments.length - 1].p2.x - road.centerX) ** 2 + (pathRoad.segments[pathRoad.segments.length - 1].p2.y - road.centerY) ** 2);
+                if (startDist < 100) {
+                    const distFromCenter = (pathRoad.segments[0].p1.x - road.centerX) * Math.cos(road.angle) + (pathRoad.segments[0].p1.y - road.centerY) * Math.sin(road.angle);
+                    pathConnections.push(distFromCenter);
+                }
+                if (endDist < 100) {
+                    const distFromCenter = (pathRoad.segments[pathRoad.segments.length - 1].p2.x - road.centerX) * Math.cos(road.angle) + (pathRoad.segments[pathRoad.segments.length - 1].p2.y - road.centerY) * Math.sin(road.angle);
+                    pathConnections.push(distFromCenter);
+                }
+            }
+        }
+
         // Draw markings for each segment
         for (const seg of segments) {
+            // Skip segments that overlap with path connections
+            let skipSegment = false;
+            for (const conn of pathConnections) {
+                if (conn >= seg.start - 30 && conn <= seg.end + 30) {
+                    skipSegment = true;
+                    break;
+                }
+            }
+            if (skipSegment) continue;
+
             if (road.type === 'FOUR_LANE') {
                 // Center yellow dashed line
                 ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
@@ -438,6 +745,189 @@ class RoadSystem {
 
         ctx.restore();
     }
+
+    drawPathRoadMarkings(ctx, road) {
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Find nearby 4-lane roads to clip markings
+        const clipZones = [];
+        for (const otherRoad of this.roads) {
+            if (otherRoad.type === 'FOUR_LANE' && !otherRoad.isPath && !otherRoad.isCurved) {
+                const startDist = Math.sqrt((road.segments[0].p1.x - otherRoad.centerX) ** 2 + (road.segments[0].p1.y - otherRoad.centerY) ** 2);
+                const endDist = Math.sqrt((road.segments[road.segments.length - 1].p2.x - otherRoad.centerX) ** 2 + (road.segments[road.segments.length - 1].p2.y - otherRoad.centerY) ** 2);
+                if (startDist < 200) clipZones.push({ pos: road.segments[0].p1, size: 150 });
+                if (endDist < 200) clipZones.push({ pos: road.segments[road.segments.length - 1].p2, size: 150 });
+            }
+        }
+
+        if (road.type === 'FOUR_LANE') {
+            // Center yellow line
+            ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 15]);
+            ctx.beginPath();
+            ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
+            for (const seg of road.segments) {
+                ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+            }
+            ctx.stroke();
+
+            // Lane dividers
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.setLineDash([15, 10]);
+            for (const offset of [-50, 50]) {
+                ctx.beginPath();
+                const start = this.offsetBezierPoint(road.segments[0].p1, road.segments[0].p1, road.segments[0].cp1, 0, offset);
+                ctx.moveTo(start.x, start.y);
+                for (const seg of road.segments) {
+                    const samples = 10;
+                    for (let i = 1; i <= samples; i++) {
+                        const t = i / samples;
+                        const point = this.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                        const angle = this.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                        const offsetPoint = { x: point.x - offset * Math.sin(angle), y: point.y + offset * Math.cos(angle) };
+                        ctx.lineTo(offsetPoint.x, offsetPoint.y);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            // Edge lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([]);
+            for (const offset of [-100, 100]) {
+                ctx.beginPath();
+                const start = this.offsetBezierPoint(road.segments[0].p1, road.segments[0].p1, road.segments[0].cp1, 0, offset);
+                ctx.moveTo(start.x, start.y);
+                for (const seg of road.segments) {
+                    const samples = 10;
+                    for (let i = 1; i <= samples; i++) {
+                        const t = i / samples;
+                        const point = this.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                        const angle = this.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                        const offsetPoint = { x: point.x - offset * Math.sin(angle), y: point.y + offset * Math.cos(angle) };
+                        ctx.lineTo(offsetPoint.x, offsetPoint.y);
+                    }
+                }
+                ctx.stroke();
+            }
+        } else if (road.type === 'TWO_LANE') {
+            // Apply clipping if near intersections
+            if (clipZones.length > 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(-10000, -10000, 20000, 20000);
+                for (const zone of clipZones) {
+                    ctx.rect(zone.pos.x - zone.size / 2, zone.pos.y - zone.size / 2, zone.size, zone.size);
+                }
+                ctx.clip('evenodd');
+            }
+
+            // Center yellow line
+            ctx.strokeStyle = 'rgba(255, 200, 0, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([15, 10]);
+            ctx.beginPath();
+            ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
+            for (const seg of road.segments) {
+                ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+            }
+            ctx.stroke();
+
+            // Edge lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.setLineDash([]);
+            for (const offset of [-60, 60]) {
+                ctx.beginPath();
+                const start = this.offsetBezierPoint(road.segments[0].p1, road.segments[0].p1, road.segments[0].cp1, 0, offset);
+                ctx.moveTo(start.x, start.y);
+                for (const seg of road.segments) {
+                    const samples = 10;
+                    for (let i = 1; i <= samples; i++) {
+                        const t = i / samples;
+                        const point = this.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                        const angle = this.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                        const offsetPoint = { x: point.x - offset * Math.sin(angle), y: point.y + offset * Math.cos(angle) };
+                        ctx.lineTo(offsetPoint.x, offsetPoint.y);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            if (clipZones.length > 0) ctx.restore();
+        }
+    }
+
+    offsetBezierPoint(p0, p1, p2, t, offset) {
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        return { x: p1.x - offset * Math.sin(angle), y: p1.y + offset * Math.cos(angle) };
+    }
+
+    drawCurvedRoadMarkings(ctx, road) {
+        const hw = road.width / 2;
+
+        if (road.type === 'FOUR_LANE') {
+            // Center yellow dashed line
+            ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 15]);
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius, road.startAngle, road.endAngle);
+            ctx.stroke();
+
+            // Lane dividers
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.setLineDash([15, 10]);
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius - 50, road.startAngle, road.endAngle);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius + 50, road.startAngle, road.endAngle);
+            ctx.stroke();
+
+            // Edge lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius - 100, road.startAngle, road.endAngle);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius + 100, road.startAngle, road.endAngle);
+            ctx.stroke();
+        } else if (road.type === 'TWO_LANE') {
+            // Center yellow dashed line
+            ctx.strokeStyle = 'rgba(255, 200, 0, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([15, 10]);
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius, road.startAngle, road.endAngle);
+            ctx.stroke();
+
+            // Edge lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius - 60, road.startAngle, road.endAngle);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius + 60, road.startAngle, road.endAngle);
+            ctx.stroke();
+        } else if (road.type === 'DIRT') {
+            // Edge markers
+            ctx.strokeStyle = 'rgba(139, 90, 43, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([10, 20]);
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius - 40, road.startAngle, road.endAngle);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(road.centerX, road.centerY, road.radius + 40, road.startAngle, road.endAngle);
+            ctx.stroke();
+        }
+    }
 }
 
 // Global road system instance
@@ -450,22 +940,49 @@ function initializeRoads() {
     roadSystem.addRoad(-2400, -1200, 2400, -1200, 'FOUR_LANE');
     roadSystem.addRoad(-2400, 0, 2400, 0, 'FOUR_LANE');
     roadSystem.addRoad(-2400, 1200, 2400, 1200, 'FOUR_LANE');
-    
+
     // Vertical roads
     roadSystem.addRoad(-1200, -2400, -1200, 2400, 'FOUR_LANE');
     roadSystem.addRoad(0, -2400, 0, 2400, 'FOUR_LANE');
     roadSystem.addRoad(1200, -2400, 1200, 2400, 'FOUR_LANE');
-    
-    // 2-lane roads connecting to 4-lane at T-junctions (much longer)
-    roadSystem.addRoad(600, -1200, 600, -4000, 'TWO_LANE');
-    roadSystem.addRoad(-1200, 600, -4000, 600, 'TWO_LANE');
-    roadSystem.addRoad(0, 1800, 2800, 1800, 'TWO_LANE');
-    
-    // Dirt roads at 90° off 2-lane roads (much longer)
-    roadSystem.addRoad(600, -3400, 2400, -3400, 'DIRT');
-    roadSystem.addRoad(-3400, 600, -3400, 2400, 'DIRT');
-    roadSystem.addRoad(2200, 1800, 2200, 3600, 'DIRT');
-    
+
+    roadSystem.addPath([
+        { x: -1318, y: 600 },
+        { x: -1450, y: 600 },
+        { x: -2000, y: 500 },
+        { x: -2600, y: 700 },
+        { x: -3350, y: 600 },
+        { x: -4000, y: 600 }
+    ], 'TWO_LANE');
+
+    roadSystem.addPath([
+        { x: -1318, y: 2100 },
+        { x: -1418, y: 2100 },
+        { x: -2200, y: 2400 },
+        { x: -3600, y: 3200 },
+        { x: -5200, y: 4200 },
+        { x: -7000, y: 5400 },
+        { x: -9000, y: 6800 },
+        { x: -10000, y: 7800 },
+        { x: -11200, y: 8400 },
+        { x: -13600, y: 10200 },
+        { x: -16200, y: 12200 },
+        { x: -18800, y: 14400 },
+        { x: -11200, y: 16600 },
+        { x: -13200, y: 18800 },
+        { x: -14600, y: 20800 },
+        { x: -15400, y: 22400 },
+        { x: -15400, y: 23600 },
+    ], 'TWO_LANE');
+
     // Auto-detect intersections
     roadSystem.buildIntersections();
+}
+
+// Helper to get curve end point
+function getCurveEndPoint(centerX, centerY, radius, angle) {
+    return {
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle)
+    };
 }
