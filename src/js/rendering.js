@@ -268,61 +268,8 @@ function draw() {
     drawPoliceCar(playerCar, headlightsOn, allCars);
     drawRegularCar(regularCar);
 
-    const cos = Math.cos(car.angle);
-    const sin = Math.sin(car.angle);
-
     if (spotlightActive) {
-        ctx.globalCompositeOperation = 'lighter';
-        const driverSidePos = {
-            x: car.x + cos * 10 + sin * (car.width / 2 + 5),
-            y: car.y + sin * 10 - cos * (car.width / 2 + 5)
-        };
-        const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
-        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 50, false, allCars.filter(c => c !== playerCar));
-
-        ctx.filter = 'blur(15px)';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.beginPath();
-        ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);
-        for (let i = 1; i < spotCone.points.length; i++) {
-            ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.filter = 'blur(8px)';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.beginPath();
-        ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);
-        for (let i = 1; i < spotCone.points.length; i++) {
-            ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.filter = 'none';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.beginPath();
-        ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);
-        for (let i = 1; i < spotCone.points.length; i++) {
-            ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.filter = 'blur(8px)';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.beginPath();
-        ctx.arc(driverSidePos.x, driverSidePos.y, 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.filter = 'none';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.beginPath();
-        ctx.arc(driverSidePos.x, driverSidePos.y, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.globalCompositeOperation = 'source-over';
+        drawPoliceSpotlight(playerCar, mouseWorldX, mouseWorldY, allCars.filter(c => c !== playerCar));
     }
 
     ctx.fillStyle = '#444444';
@@ -387,29 +334,7 @@ function draw() {
         }
     }
 
-    if (spotlightActive) {
-        const driverSidePos = {
-            x: car.x + cos * 10 + sin * (car.width / 2 + 5),
-            y: car.y + sin * 10 - cos * (car.width / 2 + 5)
-        };
-        const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
-        const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 50, false, allCars.filter(c => c !== playerCar));
 
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.lineWidth = 0.3;
-
-        for (let i = 0; i < spotCone.hitPoints.length - 1; i++) {
-            const p1 = spotCone.hitPoints[i];
-            const p2 = spotCone.hitPoints[i + 1];
-            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            if (dist < 20) {
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
-            }
-        }
-    }
 
     ctx.globalCompositeOperation = 'source-over';
 

@@ -114,11 +114,8 @@ function checkCollision(carObj, otherCar) {
                     const dot = velX * nx + velY * ny;
                     const impactAngle = Math.acos(Math.abs(dot) / velMag);
                     
-                    console.log('Impact angle:', (impactAngle * 180 / Math.PI).toFixed(1), 'degrees');
-                    
                     const GLANCING_THRESHOLD = Math.PI / 6;
                     if (impactAngle > GLANCING_THRESHOLD) {
-                        console.log('GLANCING!');
                         const reflectX = velX - 2 * dot * nx;
                         const reflectY = velY - 2 * dot * ny;
                         
@@ -134,7 +131,6 @@ function checkCollision(carObj, otherCar) {
                         profiler.end('collision_check');
                         return false;
                     }
-                    console.log('HEAD-ON');
                 }
                 
                 return true;

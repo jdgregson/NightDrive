@@ -1,50 +1,159 @@
+// ========================================
+// POLICE CAR CREATION
+// ========================================
+// Creates a new police car object with initial properties
 function createPoliceCar(x, y, followTarget = null) {
     return {
-        x: x,
-        y: y,
-        width: 30,
-        height: 80,
-        angle: 0,
-        speed: 0,
-        prevSpeed: 0,
-        maxSpeed: 5,
-        acceleration: 0.3,
-        friction: 0.95,
-        turnSpeed: 0.05,
-        vx: 0,
-        vy: 0,
-        followTarget: followTarget,
-        lightOffset: Math.floor(Math.random() * 12)
+        // POSITION & DIMENSIONS
+        x: x,                    // X coordinate in world space
+        y: y,                    // Y coordinate in world space
+        width: 30,               // Car width (adjust for size)
+        height: 80,              // Car length (adjust for size)
+
+        // MOVEMENT PROPERTIES
+        angle: 0,                // Rotation angle in radians
+        speed: 0,                // Current forward/backward speed
+        prevSpeed: 0,            // Previous frame speed (for brake lights)
+        maxSpeed: 5,             // Maximum normal speed (adjust for top speed)
+        acceleration: 0.3,       // How fast car speeds up (adjust for responsiveness)
+        friction: 0.95,          // Speed decay when not accelerating (0.9=more drag, 0.99=less drag)
+        turnSpeed: 0.05,         // How fast car turns (adjust for handling)
+
+        // PHYSICS
+        vx: 0,                   // Velocity X (for collisions/sliding)
+        vy: 0,                   // Velocity Y (for collisions/sliding)
+
+        // AI & EFFECTS
+        followTarget: followTarget,  // Target car to follow (for AI)
+        lightOffset: Math.floor(Math.random() * 12)  // Random offset for light animation sync
     };
 }
 
+// ========================================
+// SPOTLIGHT (Mouse-Aimed Searchlight)
+// ========================================
+// Draws the police car's spotlight - activated by holding mouse button
+function drawPoliceSpotlight(car, mouseWorldX, mouseWorldY, allCars = []) {
+    const cos = Math.cos(car.angle);
+    const sin = Math.sin(car.angle);
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    // SPOTLIGHT POSITION (driver's side of car) - this is where the light ball appears
+    const driverSidePos = {
+        x: car.x + cos * 10 + sin * (car.width / 2 + 3),
+        y: car.y + sin * 10 - cos * (car.width / 2 + 3)
+    };
+    const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
+
+    // CONE ORIGIN POSITION - offset backwards from light ball to make cone appear wider at source
+    const coneOffset = -10;  // ADJUST THIS: negative = behind light ball, positive = in front
+    const coneOrigin = {
+        x: driverSidePos.x + Math.cos(spotAngle) * coneOffset,
+        y: driverSidePos.y + Math.sin(spotAngle) * coneOffset
+    };
+    const spotCone = castLightCone(coneOrigin, spotAngle, Math.PI / 10, 50, false, allCars);  // Cone starts from coneOrigin, not driverSidePos
+
+    // SPOTLIGHT GLOW LAYERS (layered for realistic effect)
+    // spotCone.points[0] is the origin point - all rays start from here (single point)
+    ctx.filter = 'blur(15px)';  // Adjust blur for glow spread
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';  // Adjust alpha for brightness
+    ctx.beginPath();
+    ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);  // CONE ORIGIN POINT - starts here
+    for (let i = 1; i < spotCone.points.length; i++) {
+        ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.filter = 'blur(8px)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.beginPath();
+    ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);  // CONE ORIGIN POINT - starts here
+    for (let i = 1; i < spotCone.points.length; i++) {
+        ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.filter = 'none';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.beginPath();
+    ctx.moveTo(spotCone.points[0].x, spotCone.points[0].y);  // CONE ORIGIN POINT - starts here
+    for (let i = 1; i < spotCone.points.length; i++) {
+        ctx.lineTo(spotCone.points[i].x, spotCone.points[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // SPOTLIGHT SOURCE GLOW (bright spot at origin)
+    ctx.filter = 'blur(8px)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.arc(driverSidePos.x, driverSidePos.y, 8, 0, Math.PI * 2);  // Adjust radius (6) for size
+    ctx.fill();
+
+    ctx.filter = 'none';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.beginPath();
+    ctx.arc(driverSidePos.x, driverSidePos.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // SPOTLIGHT EDGE RAYS (detail lines)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 0.3;
+    for (let i = 0; i < spotCone.hitPoints.length - 1; i++) {
+        const p1 = spotCone.hitPoints[i];
+        const p2 = spotCone.hitPoints[i + 1];
+        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        if (dist < 20) {
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+        }
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+}
+
+// ========================================
+// POLICE CAR RENDERING
+// ========================================
+// Draws the police car with lights, sirens, and effects
 function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
+    // DRAW CAR BODY
     ctx.save();
     ctx.translate(car.x, car.y);
     ctx.rotate(car.angle - Math.PI / 2);
-    ctx.fillStyle = '#000000';
+    ctx.fillStyle = '#000000';  // Main car color (adjust for different police car color)
     ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#ffffff';  // Window color
     ctx.fillRect(-car.width / 2, -14, car.width, 28);
 
+    // SIREN LIGHT ANIMATION
+    // Controls alternating red/blue flashing pattern
     let redOn = false;
     let blueOn = false;
 
     if (lightsOn) {
-        const frame = (Math.floor(Date.now() / 50) + car.lightOffset) % 12;
+        const frame = (Math.floor(Date.now() / 50) + car.lightOffset) % 12;  // Adjust /50 for flash speed
         if (frame < 2 || (frame >= 3 && frame < 5)) {
-            redOn = true;
+            redOn = true;  // Red light active frames
         } else if (frame >= 6 && frame < 8 || (frame >= 9 && frame < 11)) {
-            blueOn = true;
+            blueOn = true;  // Blue light active frames
         }
     }
 
     ctx.restore();
 
+    // SIREN LIGHT CONE EFFECTS
+    // Creates glowing light cones from the roof lights
     ctx.globalCompositeOperation = 'lighter';
 
     const cos = Math.cos(car.angle);
     const sin = Math.sin(car.angle);
+    // Calculate positions of roof lights (adjust offsets to move light positions)
     const blueLightPos = {
         x: car.x + cos * (car.height / 2 - 33) - sin * (car.width / 4 - 1),
         y: car.y + sin * (car.height / 2 - 33) + cos * (car.width / 4 - 1)
@@ -57,10 +166,11 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
     let redCone = null;
     let blueCone = null;
 
+    // RED LIGHT CONE (adjust radius 100 for light spread distance)
     if (redOn) {
         redCone = castLightCone(redLightPos, 0, Math.PI * 2, 100, false, allCars.filter(c => c !== car));
-        ctx.filter = 'blur(15px)';
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.08)';
+        ctx.filter = 'blur(15px)';  // Adjust blur amount for softer/sharper light
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.08)';  // Adjust alpha (0.08) for brightness
         ctx.beginPath();
         ctx.moveTo(redCone.points[0].x, redCone.points[0].y);
         for (let i = 1; i < redCone.points.length; i++) {
@@ -80,6 +190,7 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
 
     }
 
+    // BLUE LIGHT CONE (adjust radius 100 for light spread distance)
     if (blueOn) {
         blueCone = castLightCone(blueLightPos, 0, Math.PI * 2, 100, false, allCars.filter(c => c !== car));
         ctx.filter = 'blur(15px)';
@@ -109,20 +220,24 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
     ctx.translate(car.x, car.y);
     ctx.rotate(car.angle - Math.PI / 2);
 
+    // HEADLIGHTS & TAIL LIGHTS (small rectangles on car body)
     if (lightsEnabled) {
-        ctx.fillStyle = '#ffff00';
-        ctx.fillRect(-14, car.height / 2 - 2, 8, 3);
-        ctx.fillRect(6, car.height / 2 - 2, 8, 3);
+        ctx.fillStyle = '#ffff00';  // Headlight color (yellow)
+        ctx.fillRect(-14, car.height / 2 - 2, 8, 3);  // Left headlight
+        ctx.fillRect(6, car.height / 2 - 2, 8, 3);    // Right headlight
 
-        ctx.fillStyle = '#ff0000';
-        ctx.fillRect(-car.width / 2 + 2, -car.height / 2, 6, 3);
-        ctx.fillRect(car.width / 2 - 8, -car.height / 2, 6, 3);
+        ctx.fillStyle = '#ff0000';  // Tail light color (red)
+        ctx.fillRect(-car.width / 2 + 2, -car.height / 2, 6, 3);  // Left tail light
+        ctx.fillRect(car.width / 2 - 8, -car.height / 2, 6, 3);   // Right tail light
     }
     ctx.restore();
 
+    // TAIL LIGHT GLOW EFFECTS
+    // Creates glowing circles for brake/reverse lights
     if (lightsEnabled) {
         ctx.globalCompositeOperation = 'lighter';
 
+        // Calculate tail light positions
         const tailLeftPos = {
             x: car.x - cos * (car.height / 2 - 3) - sin * (car.width / 2 - 5),
             y: car.y - sin * (car.height / 2 - 3) + cos * (car.width / 2 - 5)
@@ -132,26 +247,30 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
             y: car.y - sin * (car.height / 2 - 3) - cos * (car.width / 2 - 5)
         };
 
+        // Detect braking and reversing for light brightness
         const isBraking = car.speed > 0.1 && car.prevSpeed - car.speed > 0.01;
         const isReversing = car.speed < -0.1;
 
-        let leftBrightness = redOn ? 0.9 : 0.3;
-        let rightBrightness = blueOn ? 0.9 : 0.3;
+        // Tail light brightness (adjust 0.9 for bright, 0.3 for dim)
+        let leftBrightness = redOn ? 0.9 : 0.3;   // Brighter when red siren on
+        let rightBrightness = blueOn ? 0.9 : 0.3; // Brighter when blue siren on
         if (isBraking) {
-            leftBrightness = 0.9;
+            leftBrightness = 0.9;   // Full brightness when braking
             rightBrightness = 0.9;
         }
 
-        ctx.filter = 'blur(6px)';
+        ctx.filter = 'blur(6px)';  // Adjust blur for glow effect
         if (isReversing) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            // White reverse lights
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';  // Adjust alpha for brightness
             ctx.beginPath();
-            ctx.arc(tailLeftPos.x, tailLeftPos.y, 8, 0, Math.PI * 2);
+            ctx.arc(tailLeftPos.x, tailLeftPos.y, 8, 0, Math.PI * 2);  // Adjust radius (8) for size
             ctx.fill();
             ctx.beginPath();
             ctx.arc(tailRightPos.x, tailRightPos.y, 8, 0, Math.PI * 2);
             ctx.fill();
         } else {
+            // Red brake/tail lights
             ctx.fillStyle = `rgba(255, 0, 0, ${leftBrightness})`;
             ctx.beginPath();
             ctx.arc(tailLeftPos.x, tailLeftPos.y, 8, 0, Math.PI * 2);
@@ -173,19 +292,23 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
 
     ctx.globalCompositeOperation = 'lighter';
 
+    // RED SIREN GLOW (layered circles for realistic glow)
     if (redOn) {
         const redGlowX = redLightPos.x + cos * 6 + sin * 8;
         const redGlowY = redLightPos.y + sin * 6 - cos * 8;
-        ctx.filter = 'blur(40px)';
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.6)';
+        // Outer glow layer
+        ctx.filter = 'blur(40px)';  // Adjust blur for glow spread
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.6)';  // Adjust alpha for intensity
         ctx.beginPath();
-        ctx.arc(redGlowX, redGlowY, 60, 0, Math.PI * 2);
+        ctx.arc(redGlowX, redGlowY, 60, 0, Math.PI * 2);  // Adjust radius for size
         ctx.fill();
+        // Middle glow layer
         ctx.filter = 'blur(25px)';
         ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
         ctx.beginPath();
         ctx.arc(redGlowX, redGlowY, 40, 0, Math.PI * 2);
         ctx.fill();
+        // Inner bright core
         ctx.filter = 'blur(12px)';
         ctx.fillStyle = 'rgba(255, 0, 0, 1)';
         ctx.beginPath();
@@ -194,19 +317,23 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
         ctx.filter = 'none';
     }
 
+    // BLUE SIREN GLOW (layered circles for realistic glow)
     if (blueOn) {
         const blueGlowX = blueLightPos.x + cos * 6 - sin * 8;
         const blueGlowY = blueLightPos.y + sin * 6 + cos * 8;
-        ctx.filter = 'blur(40px)';
-        ctx.fillStyle = 'rgba(0, 0, 255, 0.6)';
+        // Outer glow layer
+        ctx.filter = 'blur(40px)';  // Adjust blur for glow spread
+        ctx.fillStyle = 'rgba(0, 0, 255, 0.6)';  // Adjust alpha for intensity
         ctx.beginPath();
-        ctx.arc(blueGlowX, blueGlowY, 60, 0, Math.PI * 2);
+        ctx.arc(blueGlowX, blueGlowY, 60, 0, Math.PI * 2);  // Adjust radius for size
         ctx.fill();
+        // Middle glow layer
         ctx.filter = 'blur(25px)';
         ctx.fillStyle = 'rgba(0, 0, 255, 0.8)';
         ctx.beginPath();
         ctx.arc(blueGlowX, blueGlowY, 40, 0, Math.PI * 2);
         ctx.fill();
+        // Inner bright core
         ctx.filter = 'blur(12px)';
         ctx.fillStyle = 'rgba(0, 0, 255, 1)';
         ctx.beginPath();
@@ -266,38 +393,49 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
     }
 }
 
+// ========================================
+// POLICE CAR PHYSICS UPDATE
+// ========================================
+// Updates car position, handles input, and processes collisions
 function updatePoliceCar(car, otherCar) {
     const prevX = car.x;
     const prevY = car.y;
 
     car.prevSpeed = car.speed;
 
-    const boostMultiplier = keys['shift'] ? 2.5 : 1;
+    // BOOST MECHANIC (Shift key for speed boost)
+    const boostMultiplier = keys['shift'] ? 2.5 : 1;  // Adjust 2.5 for boost strength
 
+    // ACCELERATION (W key)
     if (keys['w']) {
         const targetSpeed = car.speed + car.acceleration * boostMultiplier;
         car.speed = keys['shift'] ? Math.min(targetSpeed, car.maxSpeed * 2.5) : Math.min(targetSpeed, Math.max(car.speed, car.maxSpeed));
     }
+    // BRAKING/REVERSE (S key)
     if (keys['s']) car.speed = Math.max(car.speed - car.acceleration, -car.maxSpeed / 2);
 
+    // FRICTION (natural slowdown when not accelerating)
     if (!keys['w'] && !keys['s']) car.speed *= car.friction;
     if (Math.abs(car.speed) < 0.01) car.speed = 0;
 
+    // STEERING (A/D keys - only works when moving)
     if (keys['a']) car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
     if (keys['d']) car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
 
+    // POSITION UPDATE (movement + collision velocity)
     car.x += Math.cos(car.angle) * car.speed + car.vx;
     car.y += Math.sin(car.angle) * car.speed + car.vy;
 
-    car.vx *= 0.9;
+    // VELOCITY DECAY (sliding from collisions fades out)
+    car.vx *= 0.9;  // Adjust for more/less sliding
     car.vy *= 0.9;
     if (Math.abs(car.vx) < 0.01) car.vx = 0;
     if (Math.abs(car.vy) < 0.01) car.vy = 0;
 
+    // OBSTACLE COLLISION (walls, buildings, etc.)
     if (checkCollision(car, null)) {
-        console.log('glancingBlow:', car.glancingBlow);
         if (!car.glancingBlow) {
-            console.log('HARD STOP');
+            // Hard collision - full stop
             car.x = prevX;
             car.y = prevY;
             car.vx = 0;
@@ -307,12 +445,14 @@ function updatePoliceCar(car, otherCar) {
     }
     car.glancingBlow = false;
 
+    // CAR-TO-CAR COLLISION
     if (otherCar && checkCollision(car, otherCar)) {
         const dx = car.x - otherCar.x;
         const dy = car.y - otherCar.y;
         const dist = Math.hypot(dx, dy);
 
         if (dist > 0) {
+            // Calculate collision normal
             const nx = dx / dist;
             const ny = dy / dist;
 
@@ -326,7 +466,7 @@ function updatePoliceCar(car, otherCar) {
             const relVelDotNormal = relVelX * nx + relVelY * ny;
 
             if (relVelDotNormal < 0) {
-                const restitution = 0.3;
+                const restitution = 0.3;  // Bounciness (0=no bounce, 1=full bounce)
                 const impulse = -(1 + restitution) * relVelDotNormal / 2;
 
                 car.vx += impulse * nx;
@@ -352,11 +492,13 @@ function updatePoliceCar(car, otherCar) {
                     otherCar.angle += (Math.random() - 0.5) * 0.4;
                 }
 
+                // Reduce speeds after collision (adjust 0.5 for impact severity)
                 car.speed *= 0.5;
                 otherCar.speed *= 0.5;
             }
 
-            const minDist = 90;
+            // SEPARATION (prevent cars from overlapping)
+            const minDist = 90;  // Minimum distance between cars (adjust for spacing)
             const overlap = minDist - dist;
             if (overlap > 0) {
                 const separationX = nx * overlap * 0.5;
@@ -377,5 +519,6 @@ function updatePoliceCar(car, otherCar) {
         }
     }
 
+    // CHECK FOR INTERACTIVE OBJECTS (mailboxes, cones, etc.)
     checkObjectCollision(car);
 }
