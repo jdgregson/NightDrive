@@ -5,8 +5,24 @@ function draw() {
     drawTerrain();
     profiler.end('draw_terrain');
 
+    if (ambientLight > 0) {
+        ctx.fillStyle = `rgba(200, 220, 255, ${ambientLight})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
+
+    ctx.fillStyle = `rgba(40, 40, 50, ${Math.min(ambientLight * 10, 1)})`;
+    for (const obs of obstacles) {
+        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    }
+
+    for (const obj of interactiveObjects) {
+        if (obj.hit) continue;
+        const size = obj.type === 'mailbox' ? 20 : 18;
+        ctx.fillRect(obj.x - size/2, obj.y - size/2, size, size);
+    }
 
     for (const d of debris) {
         ctx.save();

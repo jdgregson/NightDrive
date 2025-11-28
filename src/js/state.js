@@ -51,3 +51,4 @@ let bKeyPressed = false;
 let spotlightActive = false;
 let mouseWorldX = 0;
 let mouseWorldY = 0;
+let ambientLight = 0.02;

@@ -13,6 +13,12 @@ window.addEventListener('keydown', e => {
         bKeyPressed = true;
         brightsOn = !brightsOn;
     }
+    if (e.key === '+' || e.key === '=') {
+        ambientLight = Math.min(ambientLight + 0.01, 0.3);
+    }
+    if (e.key === '-' || e.key === '_') {
+        ambientLight = Math.max(ambientLight - 0.01, 0);
+    }
 });
 window.addEventListener('keyup', e => {
     const key = e.key.toLowerCase();
