@@ -295,12 +295,17 @@ function updatePoliceCar(car, otherCar) {
     if (Math.abs(car.vy) < 0.01) car.vy = 0;
 
     if (checkCollision(car, null)) {
-        car.x = prevX;
-        car.y = prevY;
-        car.vx = 0;
-        car.vy = 0;
-        car.speed = 0;
+        console.log('glancingBlow:', car.glancingBlow);
+        if (!car.glancingBlow) {
+            console.log('HARD STOP');
+            car.x = prevX;
+            car.y = prevY;
+            car.vx = 0;
+            car.vy = 0;
+            car.speed = 0;
+        }
     }
+    car.glancingBlow = false;
 
     if (otherCar && checkCollision(car, otherCar)) {
         const dx = car.x - otherCar.x;

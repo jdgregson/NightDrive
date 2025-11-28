@@ -104,6 +104,39 @@ function checkCollision(carObj, otherCar) {
                     }
                 }
                 
+                const velX = Math.cos(carObj.angle) * carObj.speed + carObj.vx;
+                const velY = Math.sin(carObj.angle) * carObj.speed + carObj.vy;
+                const velMag = Math.hypot(velX, velY);
+                
+                if (velMag > 0.1) {
+                    const nx = Math.cos(angle);
+                    const ny = Math.sin(angle);
+                    const dot = velX * nx + velY * ny;
+                    const impactAngle = Math.acos(Math.abs(dot) / velMag);
+                    
+                    console.log('Impact angle:', (impactAngle * 180 / Math.PI).toFixed(1), 'degrees');
+                    
+                    const GLANCING_THRESHOLD = Math.PI / 6;
+                    if (impactAngle > GLANCING_THRESHOLD) {
+                        console.log('GLANCING!');
+                        const reflectX = velX - 2 * dot * nx;
+                        const reflectY = velY - 2 * dot * ny;
+                        
+                        carObj.vx = reflectX * 0.2;
+                        carObj.vy = reflectY * 0.2;
+                        carObj.speed *= 0.85;
+                        
+                        const angleFactor = (impactAngle - GLANCING_THRESHOLD) / (Math.PI / 2 - GLANCING_THRESHOLD);
+                        const spinForce = (velX * ny - velY * nx) * 0.05 * angleFactor;
+                        carObj.angle += spinForce;
+                        
+                        carObj.glancingBlow = true;
+                        profiler.end('collision_check');
+                        return false;
+                    }
+                    console.log('HEAD-ON');
+                }
+                
                 return true;
             }
         }
