@@ -1,16 +1,3 @@
-console.log('%c🚓 Night Drive - Police Car Simulator', 'font-size: 16px; font-weight: bold;');
-console.log('%cDebug Info:', 'font-weight: bold;');
-console.log('  • Enable profiler: profiler.enabled = true');
-console.log('%cControls:', 'font-weight: bold;');
-console.log('  • WASD to drive');
-console.log('  • SHIFT + W to drive fast');
-console.log('  • Toggle headlights: H key');
-console.log('  • Toggle police lights: L key');
-console.log('  • Spotlight: Hold mouse button');
-console.log('  • Ambient light: +/- keys');
-console.log('%cPerformance Tip:', 'font-weight: bold; color: orange;');
-console.log('  If running slow, disable browser JIT restrictions (e.g., Edge Super Duper Secure Mode)');
-
 const profiler = {
     enabled: false,
     timings: {},

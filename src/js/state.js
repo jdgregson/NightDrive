@@ -48,6 +48,7 @@ let brightsOn = false;
 let lKeyPressed = false;
 let hKeyPressed = false;
 let bKeyPressed = false;
+let kKeyPressed = false;
 let spotlightActive = false;
 let mouseWorldX = 0;
 let mouseWorldY = 0;

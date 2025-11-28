@@ -13,6 +13,10 @@ window.addEventListener('keydown', e => {
         bKeyPressed = true;
         brightsOn = !brightsOn;
     }
+    if (key === 'k' && !kKeyPressed) {
+        kKeyPressed = true;
+        playerCar.sirenOn = !playerCar.sirenOn;
+    }
     if (e.key === '+' || e.key === '=') {
         ambientLight = Math.min(ambientLight + 0.01, 0.3);
     }
@@ -26,6 +30,7 @@ window.addEventListener('keyup', e => {
     if (key === 'l') lKeyPressed = false;
     if (key === 'h') hKeyPressed = false;
     if (key === 'b') bKeyPressed = false;
+    if (key === 'k') kKeyPressed = false;
 });
 
 canvas.addEventListener('mousedown', () => {

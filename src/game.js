@@ -1,3 +1,18 @@
+console.log('%c🚓 Night Drive - Police Car Simulator', 'font-size: 16px; font-weight: bold;');
+console.log('%cDebug Info:', 'font-weight: bold;');
+console.log('  • Enable profiler: profiler.enabled = true');
+console.log('%cControls:', 'font-weight: bold;');
+console.log('  • WASD to drive');
+console.log('  • SHIFT + W to drive fast');
+console.log('  • Toggle headlights: H key');
+console.log('  • Toggle police lights: L key');
+console.log('  • Toggle police sirens: K key');
+console.log('  • Spotlight: Hold mouse button');
+console.log('  • Ambient light: +/- keys');
+console.log('%cPerformance Tip:', 'font-weight: bold; color: orange;');
+console.log('  If running slow, disable browser JIT restrictions (e.g., Edge Super Duper Secure Mode)');
+
+
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
@@ -199,18 +214,18 @@ function checkCollision() {
 
 function checkObjectCollision() {
     const carSpeed = Math.abs(car.speed);
-    
+
     for (const obj of interactiveObjects) {
         if (obj.hit) continue;
-        
+
         const size = obj.type === 'mailbox' ? 20 : 18;
         const dist = Math.hypot(car.x - obj.x, car.y - obj.y);
-        
+
         if (dist < size + 15 && carSpeed > 0.5) {
             obj.hit = true;
             const angle = Math.atan2(obj.y - car.y, obj.x - car.x);
             const force = carSpeed * 2;
-            
+
             if (obj.type === 'mailbox') {
                 for (let i = 0; i < 8; i++) {
                     const colors = ['#ffffff', '#ff6b6b', '#4ecdc4', '#ffe66d'];
@@ -266,23 +281,23 @@ function isPointLit(x, y) {
         x: car.x + Math.cos(car.angle) * headlightOffset + Math.sin(car.angle) * 10,
         y: car.y + Math.sin(car.angle) * headlightOffset - Math.cos(car.angle) * 10
     };
-    
+
     if (headlightsOn) {
         const distLeft = Math.hypot(x - leftLight.x, y - leftLight.y);
         const angleToLeft = Math.atan2(y - leftLight.y, x - leftLight.x);
         const diffLeft = Math.abs(angleToLeft - car.angle);
         if (distLeft < 400 && diffLeft < Math.PI / 2.5) return true;
-        
+
         const distRight = Math.hypot(x - rightLight.x, y - rightLight.y);
         const angleToRight = Math.atan2(y - rightLight.y, x - rightLight.x);
         const diffRight = Math.abs(angleToRight - car.angle);
         if (distRight < 400 && diffRight < Math.PI / 2.5) return true;
     }
-    
+
     const streetLightPos = { x: streetLight.x, y: streetLight.y - streetLight.poleHeight };
     const distStreet = Math.hypot(x - streetLightPos.x, y - streetLightPos.y);
     if (distStreet < 250) return true;
-    
+
     if (spotlightActive) {
         const cos = Math.cos(car.angle);
         const sin = Math.sin(car.angle);
@@ -296,7 +311,7 @@ function isPointLit(x, y) {
         const diffSpot = Math.abs(angleToSpot - spotAngle);
         if (distSpot < 600 && diffSpot < Math.PI / 18) return true;
     }
-    
+
     return false;
 }
 
@@ -669,19 +684,19 @@ function draw() {
         }
         ctx.closePath();
         ctx.fill();
-        
+
         ctx.filter = 'blur(8px)';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.beginPath();
         ctx.arc(driverSidePos.x, driverSidePos.y, 6, 0, Math.PI * 2);
         ctx.fill();
-        
+
         ctx.filter = 'none';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.beginPath();
         ctx.arc(driverSidePos.x, driverSidePos.y, 3, 0, Math.PI * 2);
         ctx.fill();
-        
+
         ctx.globalCompositeOperation = 'source-over';
     }
 
@@ -711,7 +726,7 @@ function draw() {
     ctx.fillRect(streetLight.x - 12, streetLight.y - streetLight.poleHeight - 8, 24, 8);
 
     ctx.globalCompositeOperation = 'lighter';
-    
+
     if (headlightsOn) {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.lineWidth = 2;
@@ -748,7 +763,7 @@ function draw() {
         };
         const spotAngle = Math.atan2(mouseWorldY - driverSidePos.y, mouseWorldX - driverSidePos.x);
         const spotCone = castLightCone(driverSidePos, spotAngle, Math.PI / 10, 300);
-        
+
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.lineWidth = 2;
 
@@ -764,7 +779,7 @@ function draw() {
             }
         }
     }
-    
+
     ctx.globalCompositeOperation = 'source-over';
 
     ctx.restore();

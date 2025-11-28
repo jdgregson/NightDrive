@@ -25,7 +25,11 @@ function createPoliceCar(x, y, followTarget = null) {
 
         // AI & EFFECTS
         followTarget: followTarget,  // Target car to follow (for AI)
-        lightOffset: Math.floor(Math.random() * 12)  // Random offset for light animation sync
+        lightOffset: Math.floor(Math.random() * 12),  // Random offset for light animation sync
+        sirenSource: null,
+        sirenGain: null,
+        sirenOn: false,
+        sirenDelay: Math.random() * 300
     };
 }
 
