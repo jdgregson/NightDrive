@@ -435,6 +435,16 @@ function updatePoliceCar(car, otherCar) {
     // POSITION UPDATE (movement + collision velocity)
     car.x += Math.cos(car.angle) * car.speed + car.vx;
     car.y += Math.sin(car.angle) * car.speed + car.vy;
+    
+    // LANE ASSISTANCE (steering angle adjustment)
+    const laneAssist = roadSystem.getLaneAssist(car);
+    if (laneAssist && Math.abs(car.speed) > 0.5) {
+        const targetAngle = laneAssist.roadAngle + laneAssist.correctionAngle;
+        let angleDiff = targetAngle - car.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        car.angle += angleDiff * 0.05 * laneAssist.strength;
+    }
 
     // VELOCITY DECAY (sliding from collisions fades out)
     car.vx *= 0.9;  // Adjust for more/less sliding

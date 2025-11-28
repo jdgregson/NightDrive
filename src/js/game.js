@@ -41,6 +41,16 @@ function updateAICar(aiCar, allCars) {
 
     aiCar.x += Math.cos(aiCar.angle) * aiCar.speed + aiCar.vx;
     aiCar.y += Math.sin(aiCar.angle) * aiCar.speed + aiCar.vy;
+    
+    // Lane assistance for AI
+    const laneAssist = roadSystem.getLaneAssist(aiCar);
+    if (laneAssist && Math.abs(aiCar.speed) > 0.5) {
+        const targetAngle = laneAssist.roadAngle + laneAssist.correctionAngle;
+        let angleDiff = targetAngle - aiCar.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        aiCar.angle += angleDiff * 0.05 * laneAssist.strength;
+    }
 
     aiCar.vx *= 0.9;
     aiCar.vy *= 0.9;

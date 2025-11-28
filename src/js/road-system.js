@@ -111,6 +111,68 @@ class RoadSystem {
         return -75 + laneNumber * 50;
     }
 
+    // Get lane assistance - adjusts steering to guide toward nearest lane center
+    getLaneAssist(car) {
+        const result = this.isOnRoad(car.x, car.y);
+        if (!result.onRoad) {
+            car.laneAssistTimer = 0;
+            return null;
+        }
+        
+        const road = result.road;
+        
+        // Check if car is aligned with road direction (either direction)
+        let angleDiff = car.angle - road.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        
+        // Check both forward and reverse direction
+        const alignedForward = Math.abs(angleDiff) < Math.PI / 6;
+        const alignedReverse = Math.abs(Math.abs(angleDiff) - Math.PI) < Math.PI / 6;
+        
+        if (!alignedForward && !alignedReverse) {
+            car.laneAssistTimer = 0;
+            return null;
+        }
+        
+        const dx = car.x - road.centerX;
+        const dy = car.y - road.centerY;
+        let perpDist = -dx * Math.sin(road.angle) + dy * Math.cos(road.angle);
+        
+        // Flip perpendicular distance if going reverse direction
+        if (alignedReverse) {
+            perpDist = -perpDist;
+        }
+        
+        // Find nearest lane center
+        const lanes = [-75, -25, 25, 75];
+        let nearestLane = lanes[0];
+        let minDist = Math.abs(perpDist - lanes[0]);
+        for (const lane of lanes) {
+            const dist = Math.abs(perpDist - lane);
+            if (dist < minDist) {
+                minDist = dist;
+                nearestLane = lane;
+            }
+        }
+        
+        if (minDist < 40) {
+            if (!car.laneAssistTimer) car.laneAssistTimer = 0;
+            car.laneAssistTimer++;
+            
+            // Only assist after 60 frames (~1 second at 60fps)
+            if (car.laneAssistTimer > 60) {
+                const offsetFromLane = perpDist - nearestLane;
+                const correctionAngle = -Math.atan2(offsetFromLane, 100);
+                const effectiveRoadAngle = alignedReverse ? road.angle + Math.PI : road.angle;
+                return { roadAngle: effectiveRoadAngle, correctionAngle, strength: 1 - minDist / 40 };
+            }
+        } else {
+            car.laneAssistTimer = 0;
+        }
+        return null;
+    }
+
     // Check if car is at an intersection
     isAtIntersection(x, y, threshold = 150) {
         for (const intersection of this.intersections) {
