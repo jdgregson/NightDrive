@@ -255,9 +255,9 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
         const isBraking = car.speed > 0.1 && car.prevSpeed - car.speed > 0.01;
         const isReversing = car.speed < -0.1;
 
-        // Tail light brightness (adjust 0.9 for bright, 0.3 for dim)
-        let leftBrightness = redOn ? 0.9 : 0.3;   // Brighter when red siren on
-        let rightBrightness = blueOn ? 0.9 : 0.3; // Brighter when blue siren on
+        // Tail light brightness (adjust 0.8 for bright, 0.3 for dim)
+        let leftBrightness = redOn ? 0.8 : 0.3;   // Brighter when red siren on
+        let rightBrightness = blueOn ? 0.8 : 0.3; // Brighter when blue siren on
         if (isBraking) {
             leftBrightness = 0.9;   // Full brightness when braking
             rightBrightness = 0.9;
@@ -283,6 +283,11 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
             ctx.beginPath();
             ctx.arc(tailRightPos.x, tailRightPos.y, 8, 0, Math.PI * 2);
             ctx.fill();
+            if (blueOn) {
+                ctx.beginPath();
+                ctx.arc(tailRightPos.x, tailRightPos.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
         ctx.filter = 'none';
     }
@@ -352,7 +357,7 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
     ctx.translate(car.x, car.y);
     ctx.rotate(car.angle - Math.PI / 2);
 
-    ctx.fillStyle = redOn ? '#ff0000' : '#330000';
+    ctx.fillStyle = redOn ? '#ff4747ff' : '#330000';
     ctx.fillRect(0, car.height / 2 - 36, car.width / 2 - 2, 6);
     ctx.fillStyle = blueOn ? '#b2c2ffff' : '#000033';
     ctx.fillRect(-car.width / 2 + 2, car.height / 2 - 36, car.width / 2 - 2, 6);
@@ -423,8 +428,9 @@ function updatePoliceCar(car, otherCar) {
     if (Math.abs(car.speed) < 0.01) car.speed = 0;
 
     // STEERING (A/D keys - only works when moving)
-    if (keys['a']) car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
-    if (keys['d']) car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
+    const steerDirection = car.speed < 0 ? -1 : 1;
+    if (keys['a']) car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed * steerDirection;
+    if (keys['d']) car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed * steerDirection;
 
     // POSITION UPDATE (movement + collision velocity)
     car.x += Math.cos(car.angle) * car.speed + car.vx;
