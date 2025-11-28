@@ -309,10 +309,17 @@ const roadSystem = new RoadSystem();
 
 // Initialize roads - simple coordinate-based definition
 function initializeRoads() {
-    // Four roads meeting at origin (0, 0)
-    roadSystem.addRoad(-800, 0, 800, 0);      // East-West road
-    roadSystem.addRoad(0, -800, 0, 800);      // North-South road
-
+    // Main grid - 3x3 intersections with larger blocks
+    // Horizontal roads
+    roadSystem.addRoad(-2400, -1200, 2400, -1200);
+    roadSystem.addRoad(-2400, 0, 2400, 0);
+    roadSystem.addRoad(-2400, 1200, 2400, 1200);
+    
+    // Vertical roads
+    roadSystem.addRoad(-1200, -2400, -1200, 2400);
+    roadSystem.addRoad(0, -2400, 0, 2400);
+    roadSystem.addRoad(1200, -2400, 1200, 2400);
+    
     // Auto-detect intersections
     roadSystem.buildIntersections();
 }

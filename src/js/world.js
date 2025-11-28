@@ -17,143 +17,230 @@ function getZoneAt(x, y) {
     return { name: 'wilderness', color: '#0a2a0a' };
 }
 
+function isValidBuildingPlacement(x, y, width, height) {
+    const margin = 20; // Safety margin beyond road edge
+    const points = [
+        { x: x - margin, y: y - margin },
+        { x: x + width + margin, y: y - margin },
+        { x: x - margin, y: y + height + margin },
+        { x: x + width + margin, y: y + height + margin },
+        { x: x + width / 2, y: y - margin },
+        { x: x + width / 2, y: y + height + margin },
+        { x: x - margin, y: y + height / 2 },
+        { x: x + width + margin, y: y + height / 2 }
+    ];
+    
+    for (const point of points) {
+        if (roadSystem.isOnRoad(point.x, point.y).onRoad) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function generateWorld() {
     obstacles.length = 0;
     interactiveObjects.length = 0;
     
-    generateDowntown();
-    generateSuburbs();
-    generateBeach();
-    generateMountains();
-}
-
-function generateDowntown() {
-    const zone = worldZones[0];
-    const streetWidth = 80;
-    const alleyWidth = 40;
+    // Top-left block
+    const buildings = [
+        { x: -2100, y: -2100, width: 300, height: 250 },
+        { x: -1700, y: -2100, width: 280, height: 200 },
+        { x: -2100, y: -1750, width: 250, height: 280 },
+        { x: -1700, y: -1750, width: 300, height: 300 },
+        { x: -2100, y: -1350, width: 280, height: 200 },
+        // Top-center block
+        { x: -900, y: -2100, width: 320, height: 280 },
+        { x: -500, y: -2100, width: 250, height: 250 },
+        { x: 150, y: -2100, width: 300, height: 200 },
+        { x: -900, y: -1700, width: 280, height: 300 },
+        { x: 150, y: -1700, width: 250, height: 280 },
+        { x: -500, y: -1350, width: 300, height: 250 },
+        // Top-right block
+        { x: 1350, y: -2100, width: 280, height: 300 },
+        { x: 1750, y: -2100, width: 300, height: 250 },
+        { x: 1350, y: -1700, width: 250, height: 280 },
+        { x: 1750, y: -1700, width: 280, height: 300 },
+        { x: 1350, y: -1350, width: 300, height: 200 },
+        // Middle-left block
+        { x: -2100, y: -900, width: 300, height: 280 },
+        { x: -1700, y: -900, width: 280, height: 250 },
+        { x: -2100, y: -500, width: 250, height: 300 },
+        { x: -1700, y: 150, width: 300, height: 280 },
+        { x: -2100, y: 550, width: 280, height: 250 },
+        // Center block
+        { x: -900, y: -900, width: 300, height: 300 },
+        { x: -500, y: -900, width: 280, height: 250 },
+        { x: 150, y: -900, width: 250, height: 280 },
+        { x: -900, y: -450, width: 280, height: 300 },
+        { x: 150, y: 200, width: 300, height: 280 },
+        { x: -500, y: 550, width: 250, height: 250 },
+        // Middle-right block
+        { x: 1350, y: -900, width: 280, height: 300 },
+        { x: 1750, y: -900, width: 300, height: 250 },
+        { x: 1350, y: -500, width: 250, height: 280 },
+        { x: 1750, y: 150, width: 280, height: 300 },
+        { x: 1350, y: 550, width: 300, height: 250 },
+        // Bottom-left block
+        { x: -2100, y: 1350, width: 300, height: 280 },
+        { x: -1700, y: 1350, width: 280, height: 250 },
+        { x: -2100, y: 1750, width: 250, height: 300 },
+        { x: -1700, y: 1750, width: 300, height: 280 },
+        // Bottom-center block
+        { x: -900, y: 1350, width: 280, height: 300 },
+        { x: -500, y: 1350, width: 300, height: 250 },
+        { x: 150, y: 1350, width: 250, height: 280 },
+        { x: -900, y: 1750, width: 300, height: 300 },
+        { x: 150, y: 1750, width: 280, height: 250 },
+        // Bottom-right block
+        { x: 1350, y: 1350, width: 300, height: 280 },
+        { x: 1750, y: 1350, width: 280, height: 300 },
+        { x: 1350, y: 1750, width: 250, height: 250 },
+        { x: 1750, y: 1750, width: 300, height: 280 }
+    ];
     
-    for (let bx = 0; bx < 4; bx++) {
-        for (let by = 0; by < 4; by++) {
-            const blockX = zone.x + bx * 500;
-            const blockY = zone.y + by * 500;
-            
-            if (bx === 0 && by === 0) continue;
-            
-            const seed = (bx * 11 + by * 17) % 100;
-            
-            if (seed > 70) {
-                obstacles.push(
-                    { x: blockX, y: blockY, width: 180, height: 180 },
-                    { x: blockX + 180 + alleyWidth, y: blockY, width: 180, height: 180 },
-                    { x: blockX, y: blockY + 180 + alleyWidth, width: 180, height: 180 },
-                    { x: blockX + 180 + alleyWidth, y: blockY + 180 + alleyWidth, width: 180, height: 180 }
-                );
-            } else {
-                obstacles.push({
-                    x: blockX,
-                    y: blockY,
-                    width: 400,
-                    height: 400
-                });
-            }
+    // Validate and add buildings
+    for (const building of buildings) {
+        if (isValidBuildingPlacement(building.x, building.y, building.width, building.height)) {
+            obstacles.push(building);
         }
     }
-}
-
-function generateSuburbs() {
-    const zone = worldZones[1];
-    const lotSize = 150;
     
-    for (let x = zone.x; x < zone.x + zone.width; x += lotSize) {
-        for (let y = zone.y; y < zone.y + zone.height; y += lotSize) {
-            const seed = (x * 41 + y * 67) % 100;
-            if (seed < 60) {
-                obstacles.push({
-                    x: x + 30,
-                    y: y + 30,
-                    width: 60 + seed % 30,
-                    height: 50 + seed % 20,
-                    zone: 'suburbs'
-                });
-            }
-            if (seed % 3 === 0) {
-                interactiveObjects.push({
-                    type: 'mailbox',
-                    x: x + 20,
-                    y: y + 10,
-                    hit: false
-                });
-            }
-        }
+    // Mailboxes on sidewalks
+    const mailboxes = [
+        { x: -2000, y: -1350 }, { x: -800, y: -1350 }, { x: 400, y: -1350 }, { x: 1600, y: -1350 },
+        { x: -2000, y: -150 }, { x: 1600, y: -150 },
+        { x: -2000, y: 1050 }, { x: -800, y: 1050 }, { x: 400, y: 1050 }, { x: 1600, y: 1050 }
+    ];
+    
+    for (const pos of mailboxes) {
+        interactiveObjects.push({ type: 'mailbox', x: pos.x, y: pos.y, hit: false });
     }
 }
 
-function generateBeach() {
-    const zone = worldZones[2];
-    for (let i = 0; i < 30; i++) {
-        const x = zone.x + (i % 10) * 200 + 50;
-        const y = zone.y + Math.floor(i / 10) * 300 + 100;
-        obstacles.push({
-            x: x,
-            y: y,
-            width: 80,
-            height: 60,
-            zone: 'beach'
-        });
+function drawFullMap() {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    
+    for (const road of roadSystem.roads) {
+        minX = Math.min(minX, road.x1, road.x2);
+        maxX = Math.max(maxX, road.x1, road.x2);
+        minY = Math.min(minY, road.y1, road.y2);
+        maxY = Math.max(maxY, road.y1, road.y2);
     }
-}
-
-function generateMountains() {
-    const zone = worldZones[3];
-    for (let i = 0; i < 80; i++) {
-        const angle = (i * 137.5) * Math.PI / 180;
-        const radius = 200 + i * 30;
-        const x = zone.x + zone.width / 2 + Math.cos(angle) * radius;
-        const y = zone.y + zone.height / 2 + Math.sin(angle) * radius;
-        const seed = (i * 13) % 100;
-        obstacles.push({
-            x: x,
-            y: y,
-            width: 40 + seed % 40,
-            height: 40 + seed % 40,
-            zone: 'mountains'
-        });
+    for (const building of obstacles) {
+        minX = Math.min(minX, building.x);
+        maxX = Math.max(maxX, building.x + building.width);
+        minY = Math.min(minY, building.y);
+        maxY = Math.max(maxY, building.y + building.height);
     }
+    
+    const worldWidth = maxX - minX;
+    const worldHeight = maxY - minY;
+    const padding = 50;
+    const scale = Math.min(
+        (canvas.width - padding * 2) / worldWidth,
+        (canvas.height - padding * 2) / worldHeight
+    );
+    const offsetX = (canvas.width - worldWidth * scale) / 2 - minX * scale;
+    const offsetY = (canvas.height - worldHeight * scale) / 2 - minY * scale;
+    
+    ctx.fillStyle = 'rgba(10, 15, 20, 0.95)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#666';
+    for (const building of obstacles) {
+        ctx.fillRect(
+            offsetX + building.x * scale,
+            offsetY + building.y * scale,
+            building.width * scale,
+            building.height * scale
+        );
+    }
+    
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    for (const road of roadSystem.roads) {
+        ctx.beginPath();
+        ctx.moveTo(offsetX + road.x1 * scale, offsetY + road.y1 * scale);
+        ctx.lineTo(offsetX + road.x2 * scale, offsetY + road.y2 * scale);
+        ctx.stroke();
+    }
+    
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.arc(
+        offsetX + playerCar.x * scale,
+        offsetY + playerCar.y * scale,
+        5, 0, Math.PI * 2
+    );
+    ctx.fill();
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '20px sans-serif';
+    ctx.fillText('Hold M to view map', canvas.width / 2 - 90, 30);
 }
 
 function drawMinimap() {
     const minimapSize = 150;
     const minimapX = canvas.width - minimapSize - 20;
     const minimapY = 20;
-    const worldWidth = 6000;
-    const worldHeight = 4000;
-    const scale = minimapSize / Math.max(worldWidth, worldHeight);
+    const viewRadius = 1500;
+    const scale = minimapSize / (viewRadius * 2);
     
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(minimapX, minimapY, minimapSize, minimapSize * (worldHeight / worldWidth));
+    ctx.save();
     
-    for (const zone of worldZones) {
-        ctx.fillStyle = zone.color;
+    // Solid background
+    ctx.fillStyle = 'rgba(20, 25, 30, 0.9)';
+    ctx.fillRect(minimapX, minimapY, minimapSize, minimapSize);
+    
+    // Clip to minimap bounds
+    ctx.beginPath();
+    ctx.rect(minimapX, minimapY, minimapSize, minimapSize);
+    ctx.clip();
+    
+    // Draw buildings
+    ctx.fillStyle = '#666';
+    for (const building of obstacles) {
         ctx.fillRect(
-            minimapX + zone.x * scale,
-            minimapY + zone.y * scale,
-            zone.width * scale,
-            zone.height * scale
+            minimapX + (building.x - playerCar.x + viewRadius) * scale,
+            minimapY + (building.y - playerCar.y + viewRadius) * scale,
+            building.width * scale,
+            building.height * scale
         );
     }
     
+    // Draw roads centered on player
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    for (const road of roadSystem.roads) {
+        ctx.beginPath();
+        ctx.moveTo(
+            minimapX + (road.x1 - playerCar.x + viewRadius) * scale,
+            minimapY + (road.y1 - playerCar.y + viewRadius) * scale
+        );
+        ctx.lineTo(
+            minimapX + (road.x2 - playerCar.x + viewRadius) * scale,
+            minimapY + (road.y2 - playerCar.y + viewRadius) * scale
+        );
+        ctx.stroke();
+    }
+    
+    // Player at center
     ctx.fillStyle = '#ff0000';
     ctx.beginPath();
     ctx.arc(
-        minimapX + playerCar.x * scale,
-        minimapY + playerCar.y * scale,
-        3, 0, Math.PI * 2
+        minimapX + minimapSize / 2,
+        minimapY + minimapSize / 2,
+        4, 0, Math.PI * 2
     );
     ctx.fill();
     
+    ctx.restore();
+    
+    // Border (drawn after restore to avoid clipping)
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
-    ctx.strokeRect(minimapX, minimapY, minimapSize, minimapSize * (worldHeight / worldWidth));
+    ctx.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
 }
 
 function drawTerrain() {

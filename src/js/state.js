@@ -54,3 +54,4 @@ let mouseWorldX = 0;
 let mouseWorldY = 0;
 let ambientLight = 0.02;
 let lastSparkTime = 0;
+let showFullMap = false;

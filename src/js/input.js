@@ -1,6 +1,7 @@
 window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     keys[key] = true;
+    if (key === 'm') showFullMap = true;
     if (key === 'l' && !lKeyPressed) {
         lKeyPressed = true;
         lightsOn = !lightsOn;
@@ -27,6 +28,7 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => {
     const key = e.key.toLowerCase();
     keys[key] = false;
+    if (key === 'm') showFullMap = false;
     if (key === 'l') lKeyPressed = false;
     if (key === 'h') hKeyPressed = false;
     if (key === 'b') bKeyPressed = false;

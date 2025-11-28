@@ -350,7 +350,11 @@ function draw() {
     ctx.restore();
     
     profiler.start('draw_minimap');
-    drawMinimap();
+    if (showFullMap) {
+        drawFullMap();
+    } else {
+        drawMinimap();
+    }
     profiler.end('draw_minimap');
     
     profiler.end('draw_total');
