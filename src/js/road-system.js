@@ -1,8 +1,15 @@
 // Road System - Centralized road and intersection management
 
 const LANE_WIDTH = 50;
-const ROAD_WIDTH = 240; // 4 lanes total (2 each direction)
-const HALF_ROAD = ROAD_WIDTH / 2;
+const ROAD_WIDTH_4LANE = 240;
+const ROAD_WIDTH_2LANE = 120;
+const ROAD_WIDTH_DIRT = 80;
+
+const ROAD_TYPES = {
+    FOUR_LANE: { width: 240, lanes: [-75, -25, 25, 75], color: '#050505', edgeColor: '#0f0f0f' },
+    TWO_LANE: { width: 120, lanes: [-30, 30], color: '#050505', edgeColor: '#0f0f0f' },
+    DIRT: { width: 80, lanes: [0], color: '#3a2a1a', edgeColor: '#2a1a0a' }
+};
 
 class RoadSystem {
     constructor() {
@@ -10,12 +17,13 @@ class RoadSystem {
         this.intersections = [];
     }
 
-    // Add a road segment: start point, end point
-    addRoad(x1, y1, x2, y2) {
+    // Add a road segment: start point, end point, type
+    addRoad(x1, y1, x2, y2, type = 'FOUR_LANE') {
         const dx = x2 - x1;
         const dy = y2 - y1;
         const length = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx);
+        const roadType = ROAD_TYPES[type];
 
         this.roads.push({
             x1, y1, x2, y2,
@@ -23,7 +31,9 @@ class RoadSystem {
             centerY: (y1 + y2) / 2,
             length,
             angle,
-            width: ROAD_WIDTH
+            width: roadType.width,
+            type,
+            roadType
         });
     }
 
@@ -52,10 +62,15 @@ class RoadSystem {
         const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
 
         if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+            const bothFourLane = road1.type === 'FOUR_LANE' && road2.type === 'FOUR_LANE';
+            const intersectionType = bothFourLane ? 'FULL' : 'T_JUNCTION';
+            const size = bothFourLane ? road1.width : Math.max(road1.width, road2.width);
+            
             return {
                 x: x1 + t * (x2 - x1),
                 y: y1 + t * (y2 - y1),
-                size: ROAD_WIDTH,
+                size,
+                type: intersectionType,
                 roads: [road1, road2]
             };
         }
@@ -78,7 +93,7 @@ class RoadSystem {
         const rotX = dx * Math.cos(-road.angle) - dy * Math.sin(-road.angle);
         const rotY = dx * Math.sin(-road.angle) + dy * Math.cos(-road.angle);
 
-        return Math.abs(rotX) <= road.length / 2 && Math.abs(rotY) <= HALF_ROAD;
+        return Math.abs(rotX) <= road.length / 2 && Math.abs(rotY) <= road.width / 2;
     }
 
     // Get lane center for a car to follow
@@ -106,9 +121,9 @@ class RoadSystem {
         };
     }
 
-    getLaneOffset(laneNumber) {
-        // Lane 0: -75, Lane 1: -25, Lane 2: 25, Lane 3: 75
-        return -75 + laneNumber * 50;
+    getLaneOffset(laneNumber, road) {
+        const lanes = road.roadType.lanes;
+        return lanes[Math.min(laneNumber, lanes.length - 1)];
     }
 
     // Get lane assistance - adjusts steering to guide toward nearest lane center
@@ -145,7 +160,7 @@ class RoadSystem {
         }
         
         // Find nearest lane center
-        const lanes = [-75, -25, 25, 75];
+        const lanes = road.roadType.lanes;
         let nearestLane = lanes[0];
         let minDist = Math.abs(perpDist - lanes[0]);
         for (const lane of lanes) {
@@ -186,61 +201,85 @@ class RoadSystem {
 
     // Render all roads
     draw(ctx) {
-        // Draw road surfaces
+        // Draw road surfaces with clipping at T-junctions
         for (const road of this.roads) {
+            const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
+            const tJunctions = roadIntersections.filter(i => i.type === 'T_JUNCTION');
+            
             ctx.save();
             ctx.translate(road.centerX, road.centerY);
             ctx.rotate(road.angle);
 
             const hl = road.length / 2;
-            const hw = HALF_ROAD;
+            const hw = road.width / 2;
+            
+            // Clip smaller roads at T-junctions
+            if (tJunctions.length > 0) {
+                ctx.beginPath();
+                ctx.rect(-hl, -hw - 20, road.length, road.width + 40);
+                
+                for (const tj of tJunctions) {
+                    const [road1, road2] = tj.roads;
+                    const smallerRoad = road1.width < road2.width ? road1 : road2;
+                    
+                    if (smallerRoad === road) {
+                        const largerRoad = road1.width >= road2.width ? road1 : road2;
+                        const distFromCenter = (tj.x - road.centerX) * Math.cos(road.angle) + (tj.y - road.centerY) * Math.sin(road.angle);
+                        const clipHalf = largerRoad.width / 2;
+                        ctx.rect(distFromCenter - clipHalf, -hw - 20, clipHalf * 2, road.width + 40);
+                    }
+                }
+                ctx.clip('evenodd');
+            }
 
             // Shoulders
-            ctx.fillStyle = '#0f0f0f';
+            ctx.fillStyle = road.roadType.edgeColor;
             ctx.fillRect(-hl, -hw - 20, road.length, 20);
             ctx.fillRect(-hl, hw, road.length, 20);
 
             // Road surface
-            ctx.fillStyle = '#050505';
-            ctx.fillRect(-hl, -hw, road.length, ROAD_WIDTH);
+            ctx.fillStyle = road.roadType.color;
+            ctx.fillRect(-hl, -hw, road.length, road.width);
 
             ctx.restore();
         }
 
         // Draw intersections
         for (const intersection of this.intersections) {
-            const half = intersection.size / 2;
+            if (intersection.type === 'FULL') {
+                const half = intersection.size / 2;
 
-            // Intersection surface
-            ctx.fillStyle = '#050505';
-            ctx.fillRect(intersection.x - half, intersection.y - half, intersection.size, intersection.size);
+                // Intersection surface
+                ctx.fillStyle = '#050505';
+                ctx.fillRect(intersection.x - half, intersection.y - half, intersection.size, intersection.size);
 
-            // Crosswalks (zebra stripes spanning full intersection)
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            const stripeWidth = 8;
-            const stripeGap = 8;
-            const stripeUnit = stripeWidth + stripeGap;
-            
-            // Calculate centered offset (drop first and last stripe)
-            const numStripes = Math.floor(intersection.size / stripeUnit) - 2;
-            const totalWidth = numStripes * stripeUnit - stripeGap;
-            const offset = (intersection.size - totalWidth) / 2;
+                // Crosswalks (zebra stripes spanning full intersection)
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                const stripeWidth = 8;
+                const stripeGap = 8;
+                const stripeUnit = stripeWidth + stripeGap;
+                
+                // Calculate centered offset (drop first and last stripe)
+                const numStripes = Math.floor(intersection.size / stripeUnit) - 2;
+                const totalWidth = numStripes * stripeUnit - stripeGap;
+                const offset = (intersection.size - totalWidth) / 2;
 
-            // Top crosswalk
-            for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
-                ctx.fillRect(intersection.x + i, intersection.y - half, stripeWidth, 20);
-            }
-            // Bottom crosswalk
-            for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
-                ctx.fillRect(intersection.x + i, intersection.y + half - 20, stripeWidth, 20);
-            }
-            // Left crosswalk
-            for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
-                ctx.fillRect(intersection.x - half, intersection.y + i, 20, stripeWidth);
-            }
-            // Right crosswalk
-            for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
-                ctx.fillRect(intersection.x + half - 20, intersection.y + i, 20, stripeWidth);
+                // Top crosswalk
+                for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
+                    ctx.fillRect(intersection.x + i, intersection.y - half, stripeWidth, 20);
+                }
+                // Bottom crosswalk
+                for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
+                    ctx.fillRect(intersection.x + i, intersection.y + half - 20, stripeWidth, 20);
+                }
+                // Left crosswalk
+                for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
+                    ctx.fillRect(intersection.x - half, intersection.y + i, 20, stripeWidth);
+                }
+                // Right crosswalk
+                for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
+                    ctx.fillRect(intersection.x + half - 20, intersection.y + i, 20, stripeWidth);
+                }
             }
         }
     }
@@ -254,37 +293,35 @@ class RoadSystem {
             this.drawRoadSegmentMarkings(ctx, road);
         }
 
-        // Intersection stop lines (only on approach side)
+        // Intersection stop lines
         for (const intersection of this.intersections) {
-            const half = intersection.size / 2;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 4;
-            ctx.setLineDash([]);
+            if (intersection.type === 'FULL') {
+                const half = intersection.size / 2;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([]);
 
-            // Stop lines only on near side of each approach (right-hand lanes only)
-            // Top approach (coming from north) - right side lanes
-            ctx.beginPath();
-            ctx.moveTo(intersection.x - 100, intersection.y - half - 5);
-            ctx.lineTo(intersection.x, intersection.y - half - 5);
-            ctx.stroke();
+                // Stop lines only on near side of each approach (right-hand lanes only)
+                ctx.beginPath();
+                ctx.moveTo(intersection.x - 100, intersection.y - half - 5);
+                ctx.lineTo(intersection.x, intersection.y - half - 5);
+                ctx.stroke();
 
-            // Bottom approach (coming from south) - right side lanes
-            ctx.beginPath();
-            ctx.moveTo(intersection.x, intersection.y + half + 5);
-            ctx.lineTo(intersection.x + 100, intersection.y + half + 5);
-            ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(intersection.x, intersection.y + half + 5);
+                ctx.lineTo(intersection.x + 100, intersection.y + half + 5);
+                ctx.stroke();
 
-            // Left approach (coming from west) - right side lanes
-            ctx.beginPath();
-            ctx.moveTo(intersection.x - half - 5, intersection.y + 100);
-            ctx.lineTo(intersection.x - half - 5, intersection.y);
-            ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(intersection.x - half - 5, intersection.y + 100);
+                ctx.lineTo(intersection.x - half - 5, intersection.y);
+                ctx.stroke();
 
-            // Right approach (coming from east) - right side lanes
-            ctx.beginPath();
-            ctx.moveTo(intersection.x + half + 5, intersection.y);
-            ctx.lineTo(intersection.x + half + 5, intersection.y - 100);
-            ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(intersection.x + half + 5, intersection.y);
+                ctx.lineTo(intersection.x + half + 5, intersection.y - 100);
+                ctx.stroke();
+            }
         }
 
         ctx.globalCompositeOperation = 'source-over';
@@ -326,40 +363,77 @@ class RoadSystem {
 
         // Draw markings for each segment
         for (const seg of segments) {
-            // Center yellow dashed line
-            ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([20, 15]);
-            ctx.beginPath();
-            ctx.moveTo(seg.start, 0);
-            ctx.lineTo(seg.end, 0);
-            ctx.stroke();
+            if (road.type === 'FOUR_LANE') {
+                // Center yellow dashed line
+                ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([20, 15]);
+                ctx.beginPath();
+                ctx.moveTo(seg.start, 0);
+                ctx.lineTo(seg.end, 0);
+                ctx.stroke();
 
-            // Lane dividers (white dashed)
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([15, 10]);
-            ctx.beginPath();
-            ctx.moveTo(seg.start, -50);
-            ctx.lineTo(seg.end, -50);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(seg.start, 50);
-            ctx.lineTo(seg.end, 50);
-            ctx.stroke();
+                // Lane dividers (white dashed)
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([15, 10]);
+                ctx.beginPath();
+                ctx.moveTo(seg.start, -50);
+                ctx.lineTo(seg.end, -50);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(seg.start, 50);
+                ctx.lineTo(seg.end, 50);
+                ctx.stroke();
 
-            // Edge lines (white solid)
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.moveTo(seg.start, -100);
-            ctx.lineTo(seg.end, -100);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(seg.start, 100);
-            ctx.lineTo(seg.end, 100);
-            ctx.stroke();
+                // Edge lines (white solid)
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(seg.start, -100);
+                ctx.lineTo(seg.end, -100);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(seg.start, 100);
+                ctx.lineTo(seg.end, 100);
+                ctx.stroke();
+            } else if (road.type === 'TWO_LANE') {
+                // Center yellow dashed line
+                ctx.strokeStyle = 'rgba(255, 200, 0, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([15, 10]);
+                ctx.beginPath();
+                ctx.moveTo(seg.start, 0);
+                ctx.lineTo(seg.end, 0);
+                ctx.stroke();
+
+                // Edge lines (white solid)
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(seg.start, -60);
+                ctx.lineTo(seg.end, -60);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(seg.start, 60);
+                ctx.lineTo(seg.end, 60);
+                ctx.stroke();
+            } else if (road.type === 'DIRT') {
+                // No center line, just edge markers
+                ctx.strokeStyle = 'rgba(139, 90, 43, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([10, 20]);
+                ctx.beginPath();
+                ctx.moveTo(seg.start, -40);
+                ctx.lineTo(seg.end, -40);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(seg.start, 40);
+                ctx.lineTo(seg.end, 40);
+                ctx.stroke();
+            }
         }
 
         ctx.restore();
@@ -371,16 +445,26 @@ const roadSystem = new RoadSystem();
 
 // Initialize roads - simple coordinate-based definition
 function initializeRoads() {
-    // Main grid - 3x3 intersections with larger blocks
+    // Main grid - 3x3 intersections with larger blocks (4-lane roads)
     // Horizontal roads
-    roadSystem.addRoad(-2400, -1200, 2400, -1200);
-    roadSystem.addRoad(-2400, 0, 2400, 0);
-    roadSystem.addRoad(-2400, 1200, 2400, 1200);
+    roadSystem.addRoad(-2400, -1200, 2400, -1200, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 0, 2400, 0, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 1200, 2400, 1200, 'FOUR_LANE');
     
     // Vertical roads
-    roadSystem.addRoad(-1200, -2400, -1200, 2400);
-    roadSystem.addRoad(0, -2400, 0, 2400);
-    roadSystem.addRoad(1200, -2400, 1200, 2400);
+    roadSystem.addRoad(-1200, -2400, -1200, 2400, 'FOUR_LANE');
+    roadSystem.addRoad(0, -2400, 0, 2400, 'FOUR_LANE');
+    roadSystem.addRoad(1200, -2400, 1200, 2400, 'FOUR_LANE');
+    
+    // 2-lane roads connecting to 4-lane at T-junctions (much longer)
+    roadSystem.addRoad(600, -1200, 600, -4000, 'TWO_LANE');
+    roadSystem.addRoad(-1200, 600, -4000, 600, 'TWO_LANE');
+    roadSystem.addRoad(0, 1800, 2800, 1800, 'TWO_LANE');
+    
+    // Dirt roads at 90° off 2-lane roads (much longer)
+    roadSystem.addRoad(600, -3400, 2400, -3400, 'DIRT');
+    roadSystem.addRoad(-3400, 600, -3400, 2400, 'DIRT');
+    roadSystem.addRoad(2200, 1800, 2200, 3600, 'DIRT');
     
     // Auto-detect intersections
     roadSystem.buildIntersections();
