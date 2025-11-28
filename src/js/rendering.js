@@ -5,6 +5,11 @@ function draw() {
     drawTerrain();
     profiler.end('draw_terrain');
 
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+    drawRoads();
+    ctx.restore();
+
     if (ambientLight > 0) {
         ctx.fillStyle = `rgba(200, 220, 255, ${ambientLight})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -261,6 +266,8 @@ function draw() {
     }
 
     ctx.globalCompositeOperation = 'source-over';
+
+    drawRoadMarkings();
 
     for (const ai of aiCars) {
         drawPoliceCar(ai, true, allCars);

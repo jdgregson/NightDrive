@@ -6,6 +6,8 @@ const worldZones = [
     { name: 'highway', x: 5000, y: 0, width: 1000, height: 4000, color: '#1a1a1a' }
 ];
 
+// Roads now managed by road-system.js
+
 function getZoneAt(x, y) {
     for (const zone of worldZones) {
         if (x >= zone.x && x < zone.x + zone.width && y >= zone.y && y < zone.y + zone.height) {
@@ -157,4 +159,12 @@ function drawMinimap() {
 function drawTerrain() {
     ctx.fillStyle = '#0a0a1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawRoads() {
+    roadSystem.draw(ctx);
+}
+
+function drawRoadMarkings() {
+    roadSystem.drawMarkings(ctx);
 }
