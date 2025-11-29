@@ -38,83 +38,77 @@ function isValidBuildingPlacement(x, y, width, height) {
     return true;
 }
 
+function generateBuildingsInBlock(minX, maxX, minY, maxY, seed) {
+    const buildings = [];
+    const rng = (i) => Math.abs(Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453) % 1;
+    const margin = 150;
+    const spacing = 30;
+    const minSize = 180;
+    const availW = maxX - minX - margin * 2;
+    const availH = maxY - minY - margin * 2;
+    
+    for (let i = 0; i < 12; i++) {
+        const w = minSize + rng(i * 4) * 150;
+        const h = minSize + rng(i * 4 + 1) * 150;
+        const edge = Math.floor(rng(i * 4 + 2) * 4);
+        let x, y;
+        
+        if (edge === 0) {
+            x = minX + margin;
+            y = minY + margin + rng(i * 4 + 3) * (availH - h);
+        } else if (edge === 1) {
+            x = maxX - margin - w;
+            y = minY + margin + rng(i * 4 + 3) * (availH - h);
+        } else if (edge === 2) {
+            x = minX + margin + rng(i * 4 + 3) * (availW - w);
+            y = minY + margin;
+        } else {
+            x = minX + margin + rng(i * 4 + 3) * (availW - w);
+            y = maxY - margin - h;
+        }
+        
+        if (isValidBuildingPlacement(x, y, w, h)) {
+            let overlaps = false;
+            for (const b of buildings) {
+                if (!(x + w + spacing < b.x || x > b.x + b.width + spacing || 
+                      y + h + spacing < b.y || y > b.y + b.height + spacing)) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if (!overlaps) buildings.push({ x, y, width: w, height: h });
+        }
+    }
+    return buildings;
+}
+
 function generateWorld() {
     obstacles.length = 0;
     interactiveObjects.length = 0;
     
-    // Top-left block
-    const buildings = [
-        { x: -2100, y: -2100, width: 300, height: 250 },
-        { x: -1700, y: -2100, width: 280, height: 200 },
-        { x: -2100, y: -1750, width: 250, height: 280 },
-        { x: -1700, y: -1750, width: 300, height: 300 },
-        { x: -2100, y: -1350, width: 280, height: 200 },
-        // Top-center block
-        { x: -900, y: -2100, width: 320, height: 280 },
-        { x: -500, y: -2100, width: 250, height: 250 },
-        { x: 150, y: -2100, width: 300, height: 200 },
-        { x: -900, y: -1700, width: 280, height: 300 },
-        { x: 150, y: -1700, width: 250, height: 280 },
-        { x: -500, y: -1350, width: 300, height: 250 },
-        // Top-right block
-        { x: 1350, y: -2100, width: 280, height: 300 },
-        { x: 1750, y: -2100, width: 300, height: 250 },
-        { x: 1350, y: -1700, width: 250, height: 280 },
-        { x: 1750, y: -1700, width: 280, height: 300 },
-        { x: 1350, y: -1350, width: 300, height: 200 },
-        // Middle-left block
-        { x: -2100, y: -900, width: 300, height: 280 },
-        { x: -1700, y: -900, width: 280, height: 250 },
-        { x: -2100, y: -500, width: 250, height: 300 },
-        { x: -1700, y: 150, width: 300, height: 280 },
-        { x: -2100, y: 550, width: 280, height: 250 },
-        // Center block
-        { x: -900, y: -900, width: 300, height: 300 },
-        { x: -500, y: -900, width: 280, height: 250 },
-        { x: 150, y: -900, width: 250, height: 280 },
-        { x: -900, y: -450, width: 280, height: 300 },
-        { x: 150, y: 200, width: 300, height: 280 },
-        { x: -500, y: 550, width: 250, height: 250 },
-        // Middle-right block
-        { x: 1350, y: -900, width: 280, height: 300 },
-        { x: 1750, y: -900, width: 300, height: 250 },
-        { x: 1350, y: -500, width: 250, height: 280 },
-        { x: 1750, y: 150, width: 280, height: 300 },
-        { x: 1350, y: 550, width: 300, height: 250 },
-        // Bottom-left block
-        { x: -2100, y: 1350, width: 300, height: 280 },
-        { x: -1700, y: 1350, width: 280, height: 250 },
-        { x: -2100, y: 1750, width: 250, height: 300 },
-        { x: -1700, y: 1750, width: 300, height: 280 },
-        // Bottom-center block
-        { x: -900, y: 1350, width: 280, height: 300 },
-        { x: -500, y: 1350, width: 300, height: 250 },
-        { x: 150, y: 1350, width: 250, height: 280 },
-        { x: -900, y: 1750, width: 300, height: 300 },
-        { x: 150, y: 1750, width: 280, height: 250 },
-        // Bottom-right block
-        { x: 1350, y: 1350, width: 300, height: 280 },
-        { x: 1750, y: 1350, width: 280, height: 300 },
-        { x: 1350, y: 1750, width: 250, height: 250 },
-        { x: 1750, y: 1750, width: 300, height: 280 }
-    ];
-    
-    // Validate and add buildings
-    for (const building of buildings) {
-        if (isValidBuildingPlacement(building.x, building.y, building.width, building.height)) {
-            obstacles.push(building);
+    for (let bx = -1800; bx <= 9000; bx += 1200) {
+        for (let by = -1800; by <= 9000; by += 1200) {
+            obstacles.push(...generateBuildingsInBlock(
+                bx - 600, bx + 600, by - 600, by + 600, bx * 0.1 + by * 0.01
+            ));
         }
     }
     
-    // Mailboxes on sidewalks
-    const mailboxes = [
-        { x: -2000, y: -1350 }, { x: -800, y: -1350 }, { x: 400, y: -1350 }, { x: 1600, y: -1350 },
-        { x: -2000, y: -150 }, { x: 1600, y: -150 },
-        { x: -2000, y: 1050 }, { x: -800, y: 1050 }, { x: 400, y: 1050 }, { x: 1600, y: 1050 }
-    ];
-    
-    for (const pos of mailboxes) {
-        interactiveObjects.push({ type: 'mailbox', x: pos.x, y: pos.y, hit: false });
+    // Mailboxes and trash cans on sidewalks
+    for (let rx = -1200; rx <= 9600; rx += 1200) {
+        for (let ry = -1200; ry <= 9600; ry += 1200) {
+            const offsets = [-650, -450, -250, 250, 450, 650];
+            for (const ox of offsets) {
+                for (const oy of offsets) {
+                    const seed = (rx + ox) * 0.1 + (ry + oy) * 0.01;
+                    const rng = Math.abs(Math.sin(seed * 12.9898) * 43758.5453) % 1;
+                    if (rng > 0.3) {
+                        const type = rng > 0.65 ? 'mailbox' : 'trashcan';
+                        interactiveObjects.push({ type, x: rx + ox, y: ry + oy, hit: false });
+                    }
+                }
+            }
+        }
     }
 }
 

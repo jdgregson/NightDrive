@@ -420,6 +420,7 @@ class RoadSystem {
 
             const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
             const tJunctions = roadIntersections.filter(i => i.type === 'T_JUNCTION');
+            const fullIntersections = roadIntersections.filter(i => i.type === 'FULL');
 
             ctx.save();
             ctx.translate(road.centerX, road.centerY);
@@ -428,8 +429,8 @@ class RoadSystem {
             const hl = road.length / 2;
             const hw = road.width / 2;
 
-            // Clip smaller roads at T-junctions
-            if (tJunctions.length > 0) {
+            // Clip smaller roads at T-junctions and shoulders at full intersections
+            if (tJunctions.length > 0 || fullIntersections.length > 0) {
                 ctx.beginPath();
                 ctx.rect(-hl, -hw - 20, road.length, road.width + 40);
 
@@ -443,6 +444,13 @@ class RoadSystem {
                         const clipHalf = largerRoad.width / 2;
                         ctx.rect(distFromCenter - clipHalf, -hw - 20, clipHalf * 2, road.width + 40);
                     }
+                }
+
+                for (const fi of fullIntersections) {
+                    const distFromCenter = (fi.x - road.centerX) * Math.cos(road.angle) + (fi.y - road.centerY) * Math.sin(road.angle);
+                    const clipHalf = fi.size / 2;
+                    ctx.rect(distFromCenter - clipHalf, -hw - 20, clipHalf * 2, 20);
+                    ctx.rect(distFromCenter - clipHalf, hw, clipHalf * 2, 20);
                 }
                 ctx.clip('evenodd');
             }
@@ -937,14 +945,28 @@ const roadSystem = new RoadSystem();
 function initializeRoads() {
     // Main grid - 3x3 intersections with larger blocks (4-lane roads)
     // Horizontal roads
-    roadSystem.addRoad(-2400, -1200, 2400, -1200, 'FOUR_LANE');
-    roadSystem.addRoad(-2400, 0, 2400, 0, 'FOUR_LANE');
-    roadSystem.addRoad(-2400, 1200, 2400, 1200, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, -1200, 9600, -1200, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 0, 9600, 0, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 1200, 9600, 1200, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 2400, 9600, 2400, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 3600, 9600, 3600, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 4800, 9600, 4800, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 6000, 9600, 6000, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 7200, 9600, 7200, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 8400, 9600, 8400, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, 9600, 9600, 9600, 'FOUR_LANE');
 
     // Vertical roads
-    roadSystem.addRoad(-1200, -2400, -1200, 2400, 'FOUR_LANE');
-    roadSystem.addRoad(0, -2400, 0, 2400, 'FOUR_LANE');
-    roadSystem.addRoad(1200, -2400, 1200, 2400, 'FOUR_LANE');
+    roadSystem.addRoad(-1200, -2400, -1200, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(0, -2400, 0, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(1200, -2400, 1200, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(2400, -2400, 2400, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(3600, -2400, 3600, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(4800, -2400, 4800, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(6000, -2400, 6000, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(7200, -2400, 7200, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(8400, -2400, 8400, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(9600, -2400, 9600, 9600, 'FOUR_LANE');
 
     roadSystem.addPath([
         { x: -1318, y: 600 },
