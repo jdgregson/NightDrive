@@ -56,6 +56,32 @@ class RoadSystem {
         });
     }
 
+    // Add a tapered road that transitions from one width to another
+    addTaper(x1, y1, x2, y2, startType = 'FOUR_LANE', endType = 'TWO_LANE') {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        const startWidth = ROAD_TYPES[startType].width;
+        const endWidth = ROAD_TYPES[endType].width;
+
+        this.roads.push({
+            x1, y1, x2, y2,
+            centerX: (x1 + x2) / 2,
+            centerY: (y1 + y2) / 2,
+            length,
+            angle,
+            width: startWidth,
+            startWidth,
+            endWidth,
+            type: startType,
+            endType,
+            roadType: ROAD_TYPES[startType],
+            endRoadType: ROAD_TYPES[endType],
+            isTapered: true
+        });
+    }
+
     // Add a path-based road with multiple segments (straight and curved)
     addPath(points, type = 'FOUR_LANE') {
         const roadType = ROAD_TYPES[type];
@@ -417,6 +443,10 @@ class RoadSystem {
             if (road.isPath) {
                 continue;
             }
+            if (road.isTapered) {
+                this.drawTaperedRoad(ctx, road);
+                continue;
+            }
 
             const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
             const tJunctions = roadIntersections.filter(i => i.type === 'T_JUNCTION');
@@ -544,6 +574,76 @@ class RoadSystem {
                 ctx.moveTo(intersection.x + half + 5, intersection.y);
                 ctx.lineTo(intersection.x + half + 5, intersection.y - 100);
                 ctx.stroke();
+            } else if (intersection.type === 'T_JUNCTION') {
+                const [road1, road2] = intersection.roads;
+                const half = intersection.size / 2;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([]);
+
+                // Determine which road continues through and which terminates
+                const throughRoad = road1.width >= road2.width ? road1 : road2;
+                const termRoad = road1.width < road2.width ? road1 : road2;
+                
+                const throughAngle = throughRoad.angle;
+                const termAngle = termRoad.angle;
+                
+                // Normalize angles to determine orientation
+                const isHorizontal = Math.abs(Math.cos(throughAngle)) > 0.7;
+                const termFromLeft = Math.cos(termAngle) > 0.7;
+                const termFromRight = Math.cos(termAngle) < -0.7;
+                const termFromTop = Math.sin(termAngle) > 0.7;
+                const termFromBottom = Math.sin(termAngle) < -0.7;
+
+                if (isHorizontal) {
+                    // Through road is horizontal, draw stop lines on left and right
+                    ctx.beginPath();
+                    ctx.moveTo(intersection.x - half - 5, intersection.y + 100);
+                    ctx.lineTo(intersection.x - half - 5, intersection.y);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(intersection.x + half + 5, intersection.y);
+                    ctx.lineTo(intersection.x + half + 5, intersection.y - 100);
+                    ctx.stroke();
+                    
+                    // Draw stop line for terminating road
+                    if (termFromTop) {
+                        ctx.beginPath();
+                        ctx.moveTo(intersection.x - 100, intersection.y - half - 5);
+                        ctx.lineTo(intersection.x + 100, intersection.y - half - 5);
+                        ctx.stroke();
+                    } else if (termFromBottom) {
+                        ctx.beginPath();
+                        ctx.moveTo(intersection.x - 100, intersection.y + half + 5);
+                        ctx.lineTo(intersection.x + 100, intersection.y + half + 5);
+                        ctx.stroke();
+                    }
+                } else {
+                    // Through road is vertical, draw stop lines on top and bottom
+                    ctx.beginPath();
+                    ctx.moveTo(intersection.x - 100, intersection.y - half - 5);
+                    ctx.lineTo(intersection.x, intersection.y - half - 5);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(intersection.x, intersection.y + half + 5);
+                    ctx.lineTo(intersection.x + 100, intersection.y + half + 5);
+                    ctx.stroke();
+                    
+                    // Draw stop line for terminating road
+                    if (termFromLeft) {
+                        ctx.beginPath();
+                        ctx.moveTo(intersection.x - half - 5, intersection.y - 100);
+                        ctx.lineTo(intersection.x - half - 5, intersection.y + 100);
+                        ctx.stroke();
+                    } else if (termFromRight) {
+                        ctx.beginPath();
+                        ctx.moveTo(intersection.x + half + 5, intersection.y - 100);
+                        ctx.lineTo(intersection.x + half + 5, intersection.y + 100);
+                        ctx.stroke();
+                    }
+                }
             }
         }
 
@@ -575,6 +675,80 @@ class RoadSystem {
             ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
         }
         ctx.stroke();
+    }
+
+    drawTaperedRoad(ctx, road) {
+        const steps = 20;
+        ctx.save();
+        ctx.translate(road.centerX, road.centerY);
+        ctx.rotate(road.angle);
+
+        const hl = road.length / 2;
+        const shoulderStart = 130;
+
+        // Draw shoulders (start after intersection)
+        ctx.fillStyle = road.roadType.edgeColor;
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const x = -hl + shoulderStart + t * (road.length - shoulderStart);
+            const tRoad = (x + hl) / road.length;
+            const w = road.startWidth + tRoad * (road.endWidth - road.startWidth);
+            const hw = w / 2;
+            ctx.lineTo(x, -hw - 20);
+        }
+        for (let i = steps; i >= 0; i--) {
+            const t = i / steps;
+            const x = -hl + shoulderStart + t * (road.length - shoulderStart);
+            const tRoad = (x + hl) / road.length;
+            const w = road.startWidth + tRoad * (road.endWidth - road.startWidth);
+            const hw = w / 2;
+            ctx.lineTo(x, -hw);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const x = -hl + shoulderStart + t * (road.length - shoulderStart);
+            const tRoad = (x + hl) / road.length;
+            const w = road.startWidth + tRoad * (road.endWidth - road.startWidth);
+            const hw = w / 2;
+            ctx.lineTo(x, hw);
+        }
+        for (let i = steps; i >= 0; i--) {
+            const t = i / steps;
+            const x = -hl + shoulderStart + t * (road.length - shoulderStart);
+            const tRoad = (x + hl) / road.length;
+            const w = road.startWidth + tRoad * (road.endWidth - road.startWidth);
+            const hw = w / 2;
+            ctx.lineTo(x, hw + 20);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw road surface
+        ctx.fillStyle = road.roadType.color;
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const x = -hl + t * road.length;
+            const w = road.startWidth + t * (road.endWidth - road.startWidth);
+            const hw = w / 2;
+            ctx.lineTo(x, -hw);
+        }
+        for (let i = steps; i >= 0; i--) {
+            const t = i / steps;
+            const x = -hl + t * road.length;
+            const w = road.startWidth + t * (road.endWidth - road.startWidth);
+            const hw = w / 2;
+            ctx.lineTo(x, hw);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
     }
 
     drawCurvedRoad(ctx, road) {
@@ -616,6 +790,10 @@ class RoadSystem {
             this.drawPathRoadMarkings(ctx, road);
             return;
         }
+        if (road.isTapered) {
+            this.drawTaperedRoadMarkings(ctx, road);
+            return;
+        }
         // Find intersections on this road
         const roadIntersections = this.intersections.filter(i =>
             i.roads.includes(road)
@@ -635,8 +813,14 @@ class RoadSystem {
         const hl = road.length / 2;
         const segments = [];
 
+        // Check if road starts/ends at T-junction
+        const startAtTJunction = roadIntersections.length > 0 && roadIntersections[0].type === 'T_JUNCTION' &&
+            Math.abs((roadIntersections[0].x - road.centerX) * Math.cos(road.angle) + (roadIntersections[0].y - road.centerY) * Math.sin(road.angle) + hl) < 50;
+        const endAtTJunction = roadIntersections.length > 0 && roadIntersections[roadIntersections.length - 1].type === 'T_JUNCTION' &&
+            Math.abs((roadIntersections[roadIntersections.length - 1].x - road.centerX) * Math.cos(road.angle) + (roadIntersections[roadIntersections.length - 1].y - road.centerY) * Math.sin(road.angle) - hl) < 50;
+
         // Build segments between intersections
-        let lastEnd = -hl + 20;
+        let lastEnd = startAtTJunction ? (roadIntersections[0].x - road.centerX) * Math.cos(road.angle) + (roadIntersections[0].y - road.centerY) * Math.sin(road.angle) + roadIntersections[0].size / 2 + 5 : -hl + 20;
         for (const intersection of roadIntersections) {
             const distFromCenter = (intersection.x - road.centerX) * Math.cos(road.angle) +
                                    (intersection.y - road.centerY) * Math.sin(road.angle);
@@ -647,7 +831,9 @@ class RoadSystem {
             }
             lastEnd = distFromCenter + intersection.size / 2 + 5;
         }
-        segments.push({ start: lastEnd, end: hl - 20 });
+        if (!endAtTJunction && lastEnd < hl - 20) {
+            segments.push({ start: lastEnd, end: hl - 20 });
+        }
 
         // Find path roads that connect to this 4-lane road
         const pathConnections = [];
@@ -873,6 +1059,69 @@ class RoadSystem {
         return { x: p1.x - offset * Math.sin(angle), y: p1.y + offset * Math.cos(angle) };
     }
 
+    drawTaperedRoadMarkings(ctx, road) {
+        ctx.save();
+        ctx.translate(road.centerX, road.centerY);
+        ctx.rotate(road.angle);
+
+        const hl = road.length / 2;
+        const steps = 20;
+
+        // Center yellow line (stop before end)
+        ctx.strokeStyle = 'rgba(255, 200, 0, 0.35)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([20, 15]);
+        ctx.beginPath();
+        ctx.moveTo(-hl + 130, 0);
+        ctx.lineTo(hl - 20, 0);
+        ctx.stroke();
+
+        // Edge lines that taper (extend to end)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(-hl + 130, -road.startWidth / 2);
+        for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            const x = -hl + 130 + t * (road.length - 130);
+            const w = road.startWidth + t * (road.endWidth - road.startWidth);
+            ctx.lineTo(x, -w / 2);
+        }
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-hl + 130, road.startWidth / 2);
+        for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            const x = -hl + 130 + t * (road.length - 130);
+            const w = road.startWidth + t * (road.endWidth - road.startWidth);
+            ctx.lineTo(x, w / 2);
+        }
+        ctx.stroke();
+
+        // Lane divider lines showing merge (white dashed)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([15, 10]);
+        
+        const mergeLength = (road.length - 130) * 0.33;
+        
+        // Top inner lane divider (straight, terminates halfway)
+        ctx.beginPath();
+        ctx.moveTo(-hl + 130, -50);
+        ctx.lineTo(-hl + 130 + mergeLength, -50);
+        ctx.stroke();
+
+        // Bottom inner lane divider (straight, terminates halfway)
+        ctx.beginPath();
+        ctx.moveTo(-hl + 130, 50);
+        ctx.lineTo(-hl + 130 + mergeLength, 50);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
     drawCurvedRoadMarkings(ctx, road) {
         const hw = road.width / 2;
 
@@ -968,13 +1217,39 @@ function initializeRoads() {
     roadSystem.addRoad(8400, -2400, 8400, 9600, 'FOUR_LANE');
     roadSystem.addRoad(9600, -2400, 9600, 9600, 'FOUR_LANE');
 
+    // Perimeter roads (left and bottom)
+    roadSystem.addRoad(-2400, -2400, -2400, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, -2400, 9600, -2400, 'FOUR_LANE');
+
+    // Example taper: 4-lane to 2-lane transition at perimeter T-junction (3x longer)
+    roadSystem.addTaper(9600, 1200, 12000, 1200, 'FOUR_LANE', 'TWO_LANE');
+    
+    // 2-lane continuation from taper (longer, smoother curve)
     roadSystem.addPath([
-        { x: -1318, y: 600 },
-        { x: -1450, y: 600 },
-        { x: -2000, y: 500 },
-        { x: -2600, y: 700 },
-        { x: -3350, y: 600 },
-        { x: -4000, y: 600 }
+        { x: 12000, y: 1200 },
+        { x: 12800, y: 1200 },
+        { x: 13600, y: 1250 },
+        { x: 14400, y: 1350 },
+        { x: 15200, y: 1500 },
+        { x: 16000, y: 1700 },
+        { x: 16800, y: 1950 },
+        { x: 17600, y: 2250 },
+        { x: 18400, y: 2600 },
+        { x: 19200, y: 3000 },
+        { x: 20000, y: 3450 },
+        { x: 20800, y: 3950 }
+    ], 'TWO_LANE');
+
+    // Second taper on left side at T-intersection
+    roadSystem.addTaper(-2400, 600, -4800, 600, 'FOUR_LANE', 'TWO_LANE');
+
+    roadSystem.addPath([
+        { x: -4800, y: 600 },
+        { x: -5200, y: 600 },
+        { x: -5800, y: 650 },
+        { x: -6600, y: 750 },
+        { x: -7400, y: 900 },
+        { x: -8200, y: 1100 }
     ], 'TWO_LANE');
 
     roadSystem.addPath([
