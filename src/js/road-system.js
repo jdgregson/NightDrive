@@ -185,20 +185,148 @@ class RoadSystem {
         }
     }
 
+    findPathIntersection(path1, path2) {
+        // Check for crossings
+        for (const seg1 of path1.segments) {
+            for (const seg2 of path2.segments) {
+                const samples = 10;
+                for (let i = 0; i < samples; i++) {
+                    const t1 = i / samples;
+                    const p1 = this.bezierPoint(seg1.p1, seg1.cp1, seg1.cp2, seg1.p2, t1);
+                    const p1Next = this.bezierPoint(seg1.p1, seg1.cp1, seg1.cp2, seg1.p2, (i + 1) / samples);
+
+                    for (let k = 0; k < samples; k++) {
+                        const t2 = k / samples;
+                        const p2 = this.bezierPoint(seg2.p1, seg2.cp1, seg2.cp2, seg2.p2, t2);
+                        const p2Next = this.bezierPoint(seg2.p1, seg2.cp1, seg2.cp2, seg2.p2, (k + 1) / samples);
+
+                        const intersection = this.lineSegmentIntersection(p1.x, p1.y, p1Next.x, p1Next.y, p2.x, p2.y, p2Next.x, p2Next.y);
+                        if (intersection) {
+                            const bothTwoLane = path1.type === 'TWO_LANE' && path2.type === 'TWO_LANE';
+                            const angle1 = this.bezierTangent(seg1.p1, seg1.cp1, seg1.cp2, seg1.p2, t1);
+                            return {
+                                x: intersection.x,
+                                y: intersection.y,
+                                size: bothTwoLane ? path1.width : Math.max(path1.width, path2.width),
+                                type: bothTwoLane ? 'FULL' : 'PATH_CROSS',
+                                roads: [path1, path2],
+                                angle: bothTwoLane ? angle1 : undefined
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check for T-junctions and 4-way intersections (endpoints near each other)
+        const endpoints = [
+            { path: path1, point: path1.segments[0].p1, seg: path1.segments[0], t: 0 },
+            { path: path1, point: path1.segments[path1.segments.length - 1].p2, seg: path1.segments[path1.segments.length - 1], t: 1 },
+            { path: path2, point: path2.segments[0].p1, seg: path2.segments[0], t: 0 },
+            { path: path2, point: path2.segments[path2.segments.length - 1].p2, seg: path2.segments[path2.segments.length - 1], t: 1 }
+        ];
+
+        // Check for 4-way intersection (both endpoints of one path near both endpoints of another)
+        const path1Endpoints = [endpoints[0], endpoints[1]];
+        const path2Endpoints = [endpoints[2], endpoints[3]];
+
+        let path1Near = 0, path2Near = 0;
+        let avgX = 0, avgY = 0, count = 0;
+        let angleSum = 0, angleCount = 0;
+
+        for (const ep1 of path1Endpoints) {
+            for (const ep2 of path2Endpoints) {
+                const dist = Math.hypot(ep1.point.x - ep2.point.x, ep1.point.y - ep2.point.y);
+                if (dist < 150) {
+                    avgX += ep1.point.x + ep2.point.x;
+                    avgY += ep1.point.y + ep2.point.y;
+                    count += 2;
+                    if (ep1 === path1Endpoints[0] || ep1 === path1Endpoints[1]) {
+                        path1Near++;
+                        angleSum += this.bezierTangent(ep1.seg.p1, ep1.seg.cp1, ep1.seg.cp2, ep1.seg.p2, ep1.t);
+                        angleCount++;
+                    }
+                    if (ep2 === path2Endpoints[0] || ep2 === path2Endpoints[1]) path2Near++;
+                }
+            }
+        }
+
+        // If both endpoints of both paths are near each other, it's a 4-way intersection
+        if (path1Near >= 2 && path2Near >= 2 && count >= 4) {
+            const bothTwoLane = path1.type === 'TWO_LANE' && path2.type === 'TWO_LANE';
+            return {
+                x: avgX / count,
+                y: avgY / count,
+                size: bothTwoLane ? path1.width : Math.max(path1.width, path2.width),
+                type: bothTwoLane ? 'FULL' : 'PATH_CROSS',
+                roads: [path1, path2],
+                angle: bothTwoLane && angleCount > 0 ? angleSum / angleCount : undefined
+            };
+        }
+
+        // Check for T-junctions (single endpoint pairs)
+        for (let i = 0; i < endpoints.length; i++) {
+            for (let j = i + 1; j < endpoints.length; j++) {
+                if (endpoints[i].path === endpoints[j].path) continue;
+                const dist = Math.hypot(endpoints[i].point.x - endpoints[j].point.x, endpoints[i].point.y - endpoints[j].point.y);
+                if (dist < 150) {
+                    const bothTwoLane = path1.type === 'TWO_LANE' && path2.type === 'TWO_LANE';
+                    const angle1 = this.bezierTangent(endpoints[i].seg.p1, endpoints[i].seg.cp1, endpoints[i].seg.cp2, endpoints[i].seg.p2, endpoints[i].t);
+                    const angle2 = this.bezierTangent(endpoints[j].seg.p1, endpoints[j].seg.cp1, endpoints[j].seg.cp2, endpoints[j].seg.p2, endpoints[j].t);
+                    return {
+                        x: (endpoints[i].point.x + endpoints[j].point.x) / 2,
+                        y: (endpoints[i].point.y + endpoints[j].point.y) / 2,
+                        size: bothTwoLane ? path1.width : Math.max(path1.width, path2.width),
+                        type: bothTwoLane ? 'PATH_T' : 'PATH_T',
+                        roads: [path1, path2],
+                        angle: bothTwoLane ? (angle1 + angle2) / 2 : undefined
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    lineSegmentIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {
+        const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        if (Math.abs(denom) < 0.001) return null;
+
+        const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+        const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+
+        if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+            return {
+                x: x1 + t * (x2 - x1),
+                y: y1 + t * (y2 - y1)
+            };
+        }
+        return null;
+    }
+
     findIntersection(road1, road2) {
+        if (road1.isPath && road2.isPath) {
+            return this.findPathIntersection(road1, road2);
+        }
+
+        if (road1.isPath || road2.isPath || road1.isCurved || road2.isCurved || road1.isMerge || road2.isMerge) {
+            return null;
+        }
+
         const x1 = road1.x1, y1 = road1.y1, x2 = road1.x2, y2 = road1.y2;
         const x3 = road2.x1, y3 = road2.y1, x4 = road2.x2, y4 = road2.y2;
 
         const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-        if (Math.abs(denom) < 0.001) return null; // Parallel
+        if (Math.abs(denom) < 0.001) return null;
 
         const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
         const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
 
         if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
             const bothFourLane = road1.type === 'FOUR_LANE' && road2.type === 'FOUR_LANE';
-            const intersectionType = bothFourLane ? 'FULL' : 'T_JUNCTION';
-            const size = bothFourLane ? road1.width : Math.max(road1.width, road2.width);
+            const bothTwoLane = road1.type === 'TWO_LANE' && road2.type === 'TWO_LANE';
+            const intersectionType = (bothFourLane || bothTwoLane) ? 'FULL' : 'T_JUNCTION';
+            const size = (bothFourLane || bothTwoLane) ? road1.width : Math.max(road1.width, road2.width);
 
             return {
                 x: x1 + t * (x2 - x1),
@@ -499,7 +627,25 @@ class RoadSystem {
 
         // Draw intersections
         for (const intersection of this.intersections) {
-            if (intersection.type === 'FULL') {
+            if (intersection.type === 'FULL' && intersection.angle !== undefined) {
+                const half = intersection.size / 2;
+                ctx.save();
+                ctx.translate(intersection.x, intersection.y);
+                ctx.rotate(intersection.angle);
+                ctx.fillStyle = '#050505';
+                ctx.fillRect(-half, -half, intersection.size, intersection.size);
+                ctx.restore();
+            } else if ((intersection.type === 'PATH_CROSS' || intersection.type === 'PATH_T') && intersection.roads.every(r => r.type === 'TWO_LANE')) {
+                const half = intersection.size / 2;
+                ctx.fillStyle = '#050505';
+                ctx.fillRect(intersection.x - half, intersection.y - half, intersection.size, intersection.size);
+            } else if (intersection.type === 'PATH_CROSS' || intersection.type === 'PATH_T') {
+                const half = intersection.size / 2;
+                ctx.fillStyle = '#050505';
+                ctx.beginPath();
+                ctx.arc(intersection.x, intersection.y, half, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (intersection.type === 'FULL') {
                 const half = intersection.size / 2;
 
                 // Intersection surface
@@ -507,31 +653,39 @@ class RoadSystem {
                 ctx.fillRect(intersection.x - half, intersection.y - half, intersection.size, intersection.size);
 
                 // Crosswalks (zebra stripes spanning full intersection)
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-                const stripeWidth = 8;
-                const stripeGap = 8;
-                const stripeUnit = stripeWidth + stripeGap;
+                if (intersection.angle === undefined || intersection.type === 'FULL') {
+                    ctx.save();
+                    ctx.translate(intersection.x, intersection.y);
+                    if (intersection.angle !== undefined) ctx.rotate(intersection.angle);
 
-                // Calculate centered offset (drop first and last stripe)
-                const numStripes = Math.floor(intersection.size / stripeUnit) - 2;
-                const totalWidth = numStripes * stripeUnit - stripeGap;
-                const offset = (intersection.size - totalWidth) / 2;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    const stripeWidth = 8;
+                    const stripeGap = 8;
+                    const stripeUnit = stripeWidth + stripeGap;
 
-                // Top crosswalk
-                for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
-                    ctx.fillRect(intersection.x + i, intersection.y - half, stripeWidth, 20);
-                }
-                // Bottom crosswalk
-                for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
-                    ctx.fillRect(intersection.x + i, intersection.y + half - 20, stripeWidth, 20);
-                }
-                // Left crosswalk
-                for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
-                    ctx.fillRect(intersection.x - half, intersection.y + i, 20, stripeWidth);
-                }
-                // Right crosswalk
-                for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
-                    ctx.fillRect(intersection.x + half - 20, intersection.y + i, 20, stripeWidth);
+                    // Calculate centered offset (drop first and last stripe)
+                    const numStripes = Math.floor(intersection.size / stripeUnit) - 2;
+                    const totalWidth = numStripes * stripeUnit - stripeGap;
+                    const offset = (intersection.size - totalWidth) / 2;
+
+                    // Top crosswalk
+                    for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
+                        ctx.fillRect(i, -half, stripeWidth, 20);
+                    }
+                    // Bottom crosswalk
+                    for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
+                        ctx.fillRect(i, half - 20, stripeWidth, 20);
+                    }
+                    // Left crosswalk
+                    for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
+                        ctx.fillRect(-half, i, 20, stripeWidth);
+                    }
+                    // Right crosswalk
+                    for (let i = -half + offset; i <= half - offset - stripeWidth; i += stripeUnit) {
+                        ctx.fillRect(half - 20, i, 20, stripeWidth);
+                    }
+
+                    ctx.restore();
                 }
             }
         }
@@ -548,7 +702,40 @@ class RoadSystem {
 
         // Intersection stop lines
         for (const intersection of this.intersections) {
-            if (intersection.type === 'FULL') {
+            if (intersection.type === 'FULL' && intersection.angle !== undefined) {
+                const half = intersection.size / 2;
+                ctx.save();
+                ctx.translate(intersection.x, intersection.y);
+                ctx.rotate(intersection.angle);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([]);
+
+                ctx.beginPath();
+                ctx.moveTo(-60, -half - 5);
+                ctx.lineTo(0, -half - 5);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, half + 5);
+                ctx.lineTo(60, half + 5);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(-half - 5, 60);
+                ctx.lineTo(-half - 5, 0);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(half + 5, 0);
+                ctx.lineTo(half + 5, -60);
+                ctx.stroke();
+
+                ctx.restore();
+            } else if (intersection.type === 'PATH_T' && intersection.angle !== undefined) {
+                // No stop lines for T-junctions
+                continue;
+            } else if (intersection.type === 'FULL' || ((intersection.type === 'PATH_CROSS' || intersection.type === 'PATH_T') && intersection.roads.every(r => r.type === 'TWO_LANE'))) {
                 const half = intersection.size / 2;
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
                 ctx.lineWidth = 4;
@@ -651,8 +838,6 @@ class RoadSystem {
     }
 
     drawPathRoad(ctx, road) {
-        const hw = road.width / 2;
-
         // Draw shoulders
         ctx.strokeStyle = road.roadType.edgeColor;
         ctx.lineWidth = road.width + 40;
@@ -954,6 +1139,8 @@ class RoadSystem {
                 if (endDist < 200) clipZones.push({ pos: road.segments[road.segments.length - 1].p2, size: 150 });
             }
         }
+        
+
 
         if (road.type === 'FOUR_LANE') {
             // Center yellow line
@@ -1008,17 +1195,6 @@ class RoadSystem {
                 ctx.stroke();
             }
         } else if (road.type === 'TWO_LANE') {
-            // Apply clipping if near intersections
-            if (clipZones.length > 0) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(-10000, -10000, 20000, 20000);
-                for (const zone of clipZones) {
-                    ctx.rect(zone.pos.x - zone.size / 2, zone.pos.y - zone.size / 2, zone.size, zone.size);
-                }
-                ctx.clip('evenodd');
-            }
-
             // Center yellow line
             ctx.strokeStyle = 'rgba(255, 200, 0, 0.4)';
             ctx.lineWidth = 2;
@@ -1049,8 +1225,6 @@ class RoadSystem {
                 }
                 ctx.stroke();
             }
-
-            if (clipZones.length > 0) ctx.restore();
         }
     }
 
@@ -1204,6 +1378,8 @@ function initializeRoads() {
     roadSystem.addRoad(-2400, 7200, 9600, 7200, 'FOUR_LANE');
     roadSystem.addRoad(-2400, 8400, 9600, 8400, 'FOUR_LANE');
     roadSystem.addRoad(-2400, 9600, 9600, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, -2400, -2400, 9600, 'FOUR_LANE');
+    roadSystem.addRoad(-2400, -2400, 9600, -2400, 'FOUR_LANE');
 
     // Vertical roads
     roadSystem.addRoad(-1200, -2400, -1200, 9600, 'FOUR_LANE');
@@ -1217,26 +1393,22 @@ function initializeRoads() {
     roadSystem.addRoad(8400, -2400, 8400, 9600, 'FOUR_LANE');
     roadSystem.addRoad(9600, -2400, 9600, 9600, 'FOUR_LANE');
 
-    // Perimeter roads (left and bottom)
-    roadSystem.addRoad(-2400, -2400, -2400, 9600, 'FOUR_LANE');
-    roadSystem.addRoad(-2400, -2400, 9600, -2400, 'FOUR_LANE');
-
-    // Merge and winding road from right edge T-junction (y=-1200)
     roadSystem.addMerge(9600, -1200, 12000, -1200, 'FOUR_LANE', 'TWO_LANE');
     roadSystem.addPath([{x:12000,y:-1200},{x:12241,y:-1220},{x:13001,y:-1410},{x:13618,y:-1600},{x:14330,y:-1885},{x:14900,y:-2265},{x:15613,y:-2692},{x:16372,y:-3072},{x:17607,y:-3500},{x:18604,y:-3737},{x:20028,y:-3927},{x:22403,y:-4069},{x:23970,y:-4164},{x:25869,y:-4497},{x:27056,y:-4782},{x:28813,y:-5541},{x:30142,y:-6396},{x:31092,y:-7488},{x:31804,y:-8675},{x:32374,y:-9435},{x:33324,y:-10290},{x:34368,y:-11097},{x:35508,y:-11857},{x:37123,y:-12521},{x:38025,y:-12711},{x:39022,y:-13044}], 'TWO_LANE');
 
-    // Merge and winding road from right edge T-junction (y=0)
     roadSystem.addMerge(9600, 0, 12000, 0, 'FOUR_LANE', 'TWO_LANE');
     roadSystem.addPath([{x:12000,y:0},{x:13333,y:14},{x:14615,y:-81},{x:16610,y:-271},{x:19269,y:-556},{x:21880,y:-1078},{x:24207,y:-1743},{x:28148,y:-2597},{x:31377,y:-2977},{x:34274,y:-3215},{x:35793,y:-3262},{x:38120,y:-3120},{x:39212,y:-3025}], 'TWO_LANE');
 
-    // Merge and winding road from right edge T-junction (y=1200)
     roadSystem.addMerge(9600, 1200, 12000, 1200, 'FOUR_LANE', 'TWO_LANE');
     roadSystem.addPath([{x:12000,y:1200},{x:13191,y:1296},{x:16372,y:1439},{x:20408,y:1486},{x:22688,y:1391},{x:25347,y:1249},{x:28291,y:964},{x:30380,y:774},{x:32754,y:774},{x:34653,y:1201},{x:35888,y:1676},{x:36648,y:2246},{x:37692,y:3386},{x:38262,y:4715},{x:38594,y:6092},{x:38832,y:7137}], 'TWO_LANE');
 
     roadSystem.addMerge(-2400, 0, -4800, 0, 'FOUR_LANE', 'TWO_LANE');
     roadSystem.addPath([{"x":-4800,"y":0},{"x":-6087,"y":-81},{"x":-8367,"y":-366},{"x":-9886,"y":-745},{"x":-11311,"y":-1458},{"x":-12308,"y":-2123},{"x":-13257,"y":-2882},{"x":-14492,"y":-3500},{"x":-17293,"y":-4354},{"x":-19145,"y":-4639},{"x":-21425,"y":-4877},{"x":-23561,"y":-4877},{"x":-26268,"y":-4877},{"x":-29259,"y":-4782}], 'TWO_LANE');
 
-    // Auto-detect intersections
+    //roadSystem.addPath([{"x":12051,"y":-1125},{"x":12241,"y":14},{"x":12241,"y":1249}], 'TWO_LANE');
+
+    roadSystem.addPath([{"x":15755,"y":1486},{"x":15755,"y":821},{"x":15470,"y":-793},{"x":14900,"y":-2312}], 'TWO_LANE');
+
     roadSystem.buildIntersections();
 }
 
