@@ -56,8 +56,8 @@ class RoadSystem {
         });
     }
 
-    // Add a tapered road that transitions from one width to another
-    addTaper(x1, y1, x2, y2, startType = 'FOUR_LANE', endType = 'TWO_LANE') {
+    // Add a merge road that transitions from one width to another
+    addMerge(x1, y1, x2, y2, startType = 'FOUR_LANE', endType = 'TWO_LANE') {
         const dx = x2 - x1;
         const dy = y2 - y1;
         const length = Math.sqrt(dx * dx + dy * dy);
@@ -78,7 +78,7 @@ class RoadSystem {
             endType,
             roadType: ROAD_TYPES[startType],
             endRoadType: ROAD_TYPES[endType],
-            isTapered: true
+            isMerge: true
         });
     }
 
@@ -443,8 +443,8 @@ class RoadSystem {
             if (road.isPath) {
                 continue;
             }
-            if (road.isTapered) {
-                this.drawTaperedRoad(ctx, road);
+            if (road.isMerge) {
+                this.drawMergeRoad(ctx, road);
                 continue;
             }
 
@@ -584,10 +584,10 @@ class RoadSystem {
                 // Determine which road continues through and which terminates
                 const throughRoad = road1.width >= road2.width ? road1 : road2;
                 const termRoad = road1.width < road2.width ? road1 : road2;
-                
+
                 const throughAngle = throughRoad.angle;
                 const termAngle = termRoad.angle;
-                
+
                 // Normalize angles to determine orientation
                 const isHorizontal = Math.abs(Math.cos(throughAngle)) > 0.7;
                 const termFromLeft = Math.cos(termAngle) > 0.7;
@@ -601,12 +601,12 @@ class RoadSystem {
                     ctx.moveTo(intersection.x - half - 5, intersection.y + 100);
                     ctx.lineTo(intersection.x - half - 5, intersection.y);
                     ctx.stroke();
-                    
+
                     ctx.beginPath();
                     ctx.moveTo(intersection.x + half + 5, intersection.y);
                     ctx.lineTo(intersection.x + half + 5, intersection.y - 100);
                     ctx.stroke();
-                    
+
                     // Draw stop line for terminating road
                     if (termFromTop) {
                         ctx.beginPath();
@@ -625,12 +625,12 @@ class RoadSystem {
                     ctx.moveTo(intersection.x - 100, intersection.y - half - 5);
                     ctx.lineTo(intersection.x, intersection.y - half - 5);
                     ctx.stroke();
-                    
+
                     ctx.beginPath();
                     ctx.moveTo(intersection.x, intersection.y + half + 5);
                     ctx.lineTo(intersection.x + 100, intersection.y + half + 5);
                     ctx.stroke();
-                    
+
                     // Draw stop line for terminating road
                     if (termFromLeft) {
                         ctx.beginPath();
@@ -677,7 +677,7 @@ class RoadSystem {
         ctx.stroke();
     }
 
-    drawTaperedRoad(ctx, road) {
+    drawMergeRoad(ctx, road) {
         const steps = 20;
         ctx.save();
         ctx.translate(road.centerX, road.centerY);
@@ -790,8 +790,8 @@ class RoadSystem {
             this.drawPathRoadMarkings(ctx, road);
             return;
         }
-        if (road.isTapered) {
-            this.drawTaperedRoadMarkings(ctx, road);
+        if (road.isMerge) {
+            this.drawMergeRoadMarkings(ctx, road);
             return;
         }
         // Find intersections on this road
@@ -1059,7 +1059,7 @@ class RoadSystem {
         return { x: p1.x - offset * Math.sin(angle), y: p1.y + offset * Math.cos(angle) };
     }
 
-    drawTaperedRoadMarkings(ctx, road) {
+    drawMergeRoadMarkings(ctx, road) {
         ctx.save();
         ctx.translate(road.centerX, road.centerY);
         ctx.rotate(road.angle);
@@ -1104,9 +1104,9 @@ class RoadSystem {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 2;
         ctx.setLineDash([15, 10]);
-        
+
         const mergeLength = (road.length - 130) * 0.33;
-        
+
         // Top inner lane divider (straight, terminates halfway)
         ctx.beginPath();
         ctx.moveTo(-hl + 130, -50);
@@ -1221,56 +1221,20 @@ function initializeRoads() {
     roadSystem.addRoad(-2400, -2400, -2400, 9600, 'FOUR_LANE');
     roadSystem.addRoad(-2400, -2400, 9600, -2400, 'FOUR_LANE');
 
-    // Example taper: 4-lane to 2-lane transition at perimeter T-junction (3x longer)
-    roadSystem.addTaper(9600, 1200, 12000, 1200, 'FOUR_LANE', 'TWO_LANE');
-    
-    // 2-lane continuation from taper (longer, smoother curve)
-    roadSystem.addPath([
-        { x: 12000, y: 1200 },
-        { x: 12800, y: 1200 },
-        { x: 13600, y: 1250 },
-        { x: 14400, y: 1350 },
-        { x: 15200, y: 1500 },
-        { x: 16000, y: 1700 },
-        { x: 16800, y: 1950 },
-        { x: 17600, y: 2250 },
-        { x: 18400, y: 2600 },
-        { x: 19200, y: 3000 },
-        { x: 20000, y: 3450 },
-        { x: 20800, y: 3950 }
-    ], 'TWO_LANE');
+    // Merge and winding road from right edge T-junction (y=-1200)
+    roadSystem.addMerge(9600, -1200, 12000, -1200, 'FOUR_LANE', 'TWO_LANE');
+    roadSystem.addPath([{x:12000,y:-1200},{x:12241,y:-1220},{x:13001,y:-1410},{x:13618,y:-1600},{x:14330,y:-1885},{x:14900,y:-2265},{x:15613,y:-2692},{x:16372,y:-3072},{x:17607,y:-3500},{x:18604,y:-3737},{x:20028,y:-3927},{x:22403,y:-4069},{x:23970,y:-4164},{x:25869,y:-4497},{x:27056,y:-4782},{x:28813,y:-5541},{x:30142,y:-6396},{x:31092,y:-7488},{x:31804,y:-8675},{x:32374,y:-9435},{x:33324,y:-10290},{x:34368,y:-11097},{x:35508,y:-11857},{x:37123,y:-12521},{x:38025,y:-12711},{x:39022,y:-13044}], 'TWO_LANE');
 
-    // Second taper on left side at T-intersection
-    roadSystem.addTaper(-2400, 600, -4800, 600, 'FOUR_LANE', 'TWO_LANE');
+    // Merge and winding road from right edge T-junction (y=0)
+    roadSystem.addMerge(9600, 0, 12000, 0, 'FOUR_LANE', 'TWO_LANE');
+    roadSystem.addPath([{x:12000,y:0},{x:13333,y:14},{x:14615,y:-81},{x:16610,y:-271},{x:19269,y:-556},{x:21880,y:-1078},{x:24207,y:-1743},{x:28148,y:-2597},{x:31377,y:-2977},{x:34274,y:-3215},{x:35793,y:-3262},{x:38120,y:-3120},{x:39212,y:-3025}], 'TWO_LANE');
 
-    roadSystem.addPath([
-        { x: -4800, y: 600 },
-        { x: -5200, y: 600 },
-        { x: -5800, y: 650 },
-        { x: -6600, y: 750 },
-        { x: -7400, y: 900 },
-        { x: -8200, y: 1100 }
-    ], 'TWO_LANE');
+    // Merge and winding road from right edge T-junction (y=1200)
+    roadSystem.addMerge(9600, 1200, 12000, 1200, 'FOUR_LANE', 'TWO_LANE');
+    roadSystem.addPath([{x:12000,y:1200},{x:13191,y:1296},{x:16372,y:1439},{x:20408,y:1486},{x:22688,y:1391},{x:25347,y:1249},{x:28291,y:964},{x:30380,y:774},{x:32754,y:774},{x:34653,y:1201},{x:35888,y:1676},{x:36648,y:2246},{x:37692,y:3386},{x:38262,y:4715},{x:38594,y:6092},{x:38832,y:7137}], 'TWO_LANE');
 
-    roadSystem.addPath([
-        { x: -1318, y: 2100 },
-        { x: -1418, y: 2100 },
-        { x: -2200, y: 2400 },
-        { x: -3600, y: 3200 },
-        { x: -5200, y: 4200 },
-        { x: -7000, y: 5400 },
-        { x: -9000, y: 6800 },
-        { x: -10000, y: 7800 },
-        { x: -11200, y: 8400 },
-        { x: -13600, y: 10200 },
-        { x: -16200, y: 12200 },
-        { x: -18800, y: 14400 },
-        { x: -11200, y: 16600 },
-        { x: -13200, y: 18800 },
-        { x: -14600, y: 20800 },
-        { x: -15400, y: 22400 },
-        { x: -15400, y: 23600 },
-    ], 'TWO_LANE');
+    roadSystem.addMerge(-2400, 0, -4800, 0, 'FOUR_LANE', 'TWO_LANE');
+    roadSystem.addPath([{"x":-4800,"y":0},{"x":-6087,"y":-81},{"x":-8367,"y":-366},{"x":-9886,"y":-745},{"x":-11311,"y":-1458},{"x":-12308,"y":-2123},{"x":-13257,"y":-2882},{"x":-14492,"y":-3500},{"x":-17293,"y":-4354},{"x":-19145,"y":-4639},{"x":-21425,"y":-4877},{"x":-23561,"y":-4877},{"x":-26268,"y":-4877},{"x":-29259,"y":-4782}], 'TWO_LANE');
 
     // Auto-detect intersections
     roadSystem.buildIntersections();

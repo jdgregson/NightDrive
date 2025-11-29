@@ -352,6 +352,7 @@ function draw() {
     profiler.start('draw_minimap');
     if (showFullMap) {
         drawFullMap();
+        drawEditorOverlay(ctx);
     } else {
         drawMinimap();
     }

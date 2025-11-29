@@ -1,0 +1,203 @@
+// Road Editor - Click on full map to draw road paths
+let editorMode = false;
+let currentPath = [];
+let savedPaths = [];
+let editorMergePoint = null;
+
+const tJunctions = [
+    {x:9600,y:-1200},{x:9600,y:0},{x:9600,y:1200},{x:9600,y:2400},{x:9600,y:3600},{x:9600,y:4800},
+    {x:9600,y:6000},{x:9600,y:7200},{x:9600,y:8400},
+    {x:-1200,y:-2400},{x:0,y:-2400},{x:1200,y:-2400},{x:2400,y:-2400},
+    {x:3600,y:-2400},{x:4800,y:-2400},{x:6000,y:-2400},{x:7200,y:-2400},{x:8400,y:-2400},
+    {x:-2400,y:-1200},{x:-2400,y:0},{x:-2400,y:1200},{x:-2400,y:2400},{x:-2400,y:3600},
+    {x:-2400,y:4800},{x:-2400,y:6000},{x:-2400,y:7200},{x:-2400,y:8400},
+    {x:0,y:9600},{x:1200,y:9600},{x:2400,y:9600},{x:3600,y:9600},
+    {x:4800,y:9600},{x:6000,y:9600},{x:7200,y:9600},{x:8400,y:9600}
+];
+
+window.addEventListener('keydown', e => {
+    if (e.key === 'e' && e.ctrlKey) {
+        e.preventDefault();
+        editorMode = !editorMode;
+        showFullMap = editorMode;
+        console.log(`Road Editor Mode: ${editorMode ? 'ON' : 'OFF'}`);
+        if (editorMode) {
+            console.log('Click on map to draw road points. Press C to complete path. Press X to clear. Press P to print all paths.');
+        }
+    }
+    
+    if (editorMode) {
+        if (e.key.toLowerCase() === 'c') {
+            if (currentPath.length > 1) {
+                const pathData = {
+                    points: [...currentPath],
+                    startJunction: editorMergePoint,
+                    endJunction: null
+                };
+                
+                const lastPt = currentPath[currentPath.length - 1];
+                for (const tj of tJunctions) {
+                    if (lastPt.x === tj.x && lastPt.y === tj.y) {
+                        pathData.endJunction = tj;
+                        break;
+                    }
+                }
+                
+                savedPaths.push(pathData);
+                console.log('Path saved:', JSON.stringify(currentPath));
+                if (pathData.startJunction) console.log(`  Start: T-junction (${pathData.startJunction.x}, ${pathData.startJunction.y})`);
+                if (pathData.endJunction) console.log(`  End: T-junction (${pathData.endJunction.x}, ${pathData.endJunction.y})`);
+                currentPath = [];
+                editorMergePoint = null;
+            }
+        }
+        if (e.key.toLowerCase() === 'x') {
+            currentPath = [];
+            editorMergePoint = null;
+            console.log('Current path cleared');
+        }
+        if (e.key.toLowerCase() === 'p') {
+            console.log('=== ALL SAVED PATHS ===');
+            savedPaths.forEach((pathData, i) => {
+                console.log(`\n// Path ${i + 1}`);
+                if (pathData.startJunction) {
+                    const tj = pathData.startJunction;
+                    const offset = tj.x === -2400 ? -2400 : 2400;
+                    const mergeEnd = {x: tj.x + offset, y: tj.y};
+                    console.log(`roadSystem.addMerge(${tj.x}, ${tj.y}, ${mergeEnd.x}, ${mergeEnd.y}, 'FOUR_LANE', 'TWO_LANE');`);
+                    const snappedPath = [{x: mergeEnd.x, y: mergeEnd.y}, ...pathData.points.slice(1)];
+                    console.log(`roadSystem.addPath(${JSON.stringify(snappedPath)}, 'TWO_LANE');`);
+                } else {
+                    console.log(`roadSystem.addPath(${JSON.stringify(pathData.points)}, 'TWO_LANE');`);
+                }
+            });
+            console.log('\n======================');
+        }
+        if (e.key.toLowerCase() === 'z') {
+            savedPaths = [];
+            console.log('All saved paths cleared');
+        }
+    }
+});
+
+function handleEditorClick(e) {
+    if (!editorMode) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    let minX = -15000, maxX = 25000, minY = -15000, maxY = 25000;
+    const worldWidth = maxX - minX;
+    const worldHeight = maxY - minY;
+    const scale = Math.min(canvas.width / worldWidth, canvas.height / worldHeight) * 0.9;
+    const offsetX = (canvas.width - worldWidth * scale) / 2;
+    const offsetY = (canvas.height - worldHeight * scale) / 2;
+    
+    const worldX = Math.round((clickX - offsetX) / scale + minX);
+    const worldY = Math.round((clickY - offsetY) / scale + minY);
+    
+    let nearJunction = null;
+    for (const tj of tJunctions) {
+        const dist = Math.hypot(worldX - tj.x, worldY - tj.y);
+        if (dist < 600) {
+            nearJunction = tj;
+            break;
+        }
+    }
+    
+    if (currentPath.length === 0 && nearJunction) {
+        editorMergePoint = nearJunction;
+        currentPath.push({x: nearJunction.x, y: nearJunction.y});
+        console.log(`Starting from T-junction at (${nearJunction.x}, ${nearJunction.y})`);
+    } else if (nearJunction) {
+        currentPath.push({x: nearJunction.x, y: nearJunction.y});
+        console.log(`Point added (T-junction): {x:${nearJunction.x}, y:${nearJunction.y}}`);
+    } else {
+        currentPath.push({x: worldX, y: worldY});
+        console.log(`Point added: {x:${worldX}, y:${worldY}}`);
+    }
+}
+
+canvas.addEventListener('click', handleEditorClick);
+
+function drawEditorOverlay(ctx) {
+    if (!editorMode) return;
+    
+    let minX = -15000, maxX = 25000, minY = -15000, maxY = 25000;
+    const worldWidth = maxX - minX;
+    const worldHeight = maxY - minY;
+    const scale = Math.min(canvas.width / worldWidth, canvas.height / worldHeight) * 0.9;
+    const offsetX = (canvas.width - worldWidth * scale) / 2;
+    const offsetY = (canvas.height - worldHeight * scale) / 2;
+    
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+    ctx.translate(-minX, -minY);
+    
+    if (editorMergePoint) {
+        ctx.fillStyle = 'lime';
+        ctx.beginPath();
+        ctx.arc(editorMergePoint.x, editorMergePoint.y, 80, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    if (currentPath.length > 0) {
+        ctx.strokeStyle = 'cyan';
+        ctx.lineWidth = 40;
+        ctx.beginPath();
+        for (let i = 0; i < currentPath.length; i++) {
+            const pt = currentPath[i];
+            if (i === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.stroke();
+        
+        for (const pt of currentPath) {
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 60, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    for (const pathData of savedPaths) {
+        const path = pathData.points;
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+        ctx.lineWidth = 40;
+        ctx.beginPath();
+        for (let i = 0; i < path.length; i++) {
+            const pt = path[i];
+            if (i === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.stroke();
+        
+        if (pathData.startJunction) {
+            ctx.fillStyle = 'lime';
+            ctx.beginPath();
+            ctx.arc(pathData.startJunction.x, pathData.startJunction.y, 50, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (pathData.endJunction) {
+            ctx.fillStyle = 'orange';
+            ctx.beginPath();
+            ctx.arc(pathData.endJunction.x, pathData.endJunction.y, 50, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    ctx.restore();
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(10, canvas.height - 100, 400, 90);
+    ctx.fillStyle = 'lime';
+    ctx.font = '14px monospace';
+    ctx.fillText('ROAD EDITOR MODE', 20, canvas.height - 80);
+    ctx.fillStyle = 'white';
+    ctx.font = '12px monospace';
+    ctx.fillText('Click map to add points', 20, canvas.height - 60);
+    ctx.fillText('C: Complete path  X: Clear  P: Print all', 20, canvas.height - 40);
+    ctx.fillText('Z: Clear all saved  Ctrl+E: Exit editor', 20, canvas.height - 20);
+}

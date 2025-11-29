@@ -113,33 +113,45 @@ function generateWorld() {
 }
 
 function drawFullMap() {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let minX, maxX, minY, maxY;
     
-    for (const road of roadSystem.roads) {
-        if (road.isCurved) {
-            minX = Math.min(minX, road.centerX - road.radius);
-            maxX = Math.max(maxX, road.centerX + road.radius);
-            minY = Math.min(minY, road.centerY - road.radius);
-            maxY = Math.max(maxY, road.centerY + road.radius);
-        } else if (road.isPath) {
-            for (const seg of road.segments) {
-                minX = Math.min(minX, seg.p1.x, seg.p2.x);
-                maxX = Math.max(maxX, seg.p1.x, seg.p2.x);
-                minY = Math.min(minY, seg.p1.y, seg.p2.y);
-                maxY = Math.max(maxY, seg.p1.y, seg.p2.y);
+    if (editorMode) {
+        minX = -15000;
+        maxX = 25000;
+        minY = -15000;
+        maxY = 25000;
+    } else {
+        minX = Infinity;
+        maxX = -Infinity;
+        minY = Infinity;
+        maxY = -Infinity;
+        
+        for (const road of roadSystem.roads) {
+            if (road.isCurved) {
+                minX = Math.min(minX, road.centerX - road.radius);
+                maxX = Math.max(maxX, road.centerX + road.radius);
+                minY = Math.min(minY, road.centerY - road.radius);
+                maxY = Math.max(maxY, road.centerY + road.radius);
+            } else if (road.isPath) {
+                for (const seg of road.segments) {
+                    minX = Math.min(minX, seg.p1.x, seg.p2.x);
+                    maxX = Math.max(maxX, seg.p1.x, seg.p2.x);
+                    minY = Math.min(minY, seg.p1.y, seg.p2.y);
+                    maxY = Math.max(maxY, seg.p1.y, seg.p2.y);
+                }
+            } else {
+                minX = Math.min(minX, road.x1, road.x2);
+                maxX = Math.max(maxX, road.x1, road.x2);
+                minY = Math.min(minY, road.y1, road.y2);
+                maxY = Math.max(maxY, road.y1, road.y2);
             }
-        } else {
-            minX = Math.min(minX, road.x1, road.x2);
-            maxX = Math.max(maxX, road.x1, road.x2);
-            minY = Math.min(minY, road.y1, road.y2);
-            maxY = Math.max(maxY, road.y1, road.y2);
         }
-    }
-    for (const building of obstacles) {
-        minX = Math.min(minX, building.x);
-        maxX = Math.max(maxX, building.x + building.width);
-        minY = Math.min(minY, building.y);
-        maxY = Math.max(maxY, building.y + building.height);
+        for (const building of obstacles) {
+            minX = Math.min(minX, building.x);
+            maxX = Math.max(maxX, building.x + building.width);
+            minY = Math.min(minY, building.y);
+            maxY = Math.max(maxY, building.y + building.height);
+        }
     }
     
     const worldWidth = maxX - minX;
