@@ -377,7 +377,7 @@ class RoadSystem {
         return false;
     }
 
-    closestPointOnBezier(x, y, p0, p1, p2, p3, samples = 20) {
+    closestPointOnBezier(x, y, p0, p1, p2, p3, samples = 50) {
         let minDist = Infinity;
         let bestT = 0;
         for (let i = 0; i <= samples; i++) {
@@ -389,6 +389,21 @@ class RoadSystem {
                 bestT = t;
             }
         }
+
+        // Refine search around best sample
+        let step = 1 / samples;
+        for (let i = 0; i < 10; i++) {
+            const t1 = Math.max(0, bestT - step);
+            const t2 = Math.min(1, bestT + step);
+            const pt1 = this.bezierPoint(p0, p1, p2, p3, t1);
+            const pt2 = this.bezierPoint(p0, p1, p2, p3, t2);
+            const d1 = Math.sqrt((x - pt1.x) ** 2 + (y - pt1.y) ** 2);
+            const d2 = Math.sqrt((x - pt2.x) ** 2 + (y - pt2.y) ** 2);
+            if (d1 < minDist) { minDist = d1; bestT = t1; }
+            if (d2 < minDist) { minDist = d2; bestT = t2; }
+            step *= 0.5;
+        }
+
         return { t: bestT, distance: minDist };
     }
 
@@ -492,7 +507,20 @@ class RoadSystem {
         if (alignedReverse) perpDist = -perpDist;
 
         // Find nearest lane center
-        const lanes = road.roadType.lanes;
+        let lanes = road.roadType.lanes;
+        let isMerging = false;
+
+        // Handle merge lanes - guide outer lanes toward center
+        if (road.isMerge && road.endRoadType) {
+            const dx = car.x - road.x1;
+            const dy = car.y - road.y1;
+            const progress = (dx * Math.cos(road.angle) + dy * Math.sin(road.angle)) / road.length;
+            if (progress > 0.45) {
+                lanes = road.endRoadType.lanes;
+                isMerging = true;
+            }
+        }
+
         let nearestLane = lanes[0];
         let minDist = Math.abs(perpDist - lanes[0]);
         for (const lane of lanes) {
@@ -503,7 +531,8 @@ class RoadSystem {
             }
         }
 
-        if (minDist < 40) {
+        const threshold = isMerging ? 70 : 40;
+        if (minDist < threshold) {
             if (!car.laneAssistTimer) car.laneAssistTimer = 0;
             car.laneAssistTimer++;
 
@@ -511,7 +540,7 @@ class RoadSystem {
                 const offsetFromLane = perpDist - nearestLane;
                 const correctionAngle = -Math.atan2(offsetFromLane, 150);
                 const effectiveRoadAngle = alignedReverse ? roadAngle + Math.PI : roadAngle;
-                return { roadAngle: effectiveRoadAngle, correctionAngle, strength: 1 - minDist / 40 };
+                return { roadAngle: effectiveRoadAngle, correctionAngle, strength: 1 - minDist / threshold };
             }
         } else {
             car.laneAssistTimer = 0;
