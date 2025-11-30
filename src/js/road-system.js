@@ -507,9 +507,9 @@ class RoadSystem {
             if (!car.laneAssistTimer) car.laneAssistTimer = 0;
             car.laneAssistTimer++;
 
-            if (car.laneAssistTimer > 60) {
+            if (car.laneAssistTimer > 30) {
                 const offsetFromLane = perpDist - nearestLane;
-                const correctionAngle = -Math.atan2(offsetFromLane, 100);
+                const correctionAngle = -Math.atan2(offsetFromLane, 150);
                 const effectiveRoadAngle = alignedReverse ? roadAngle + Math.PI : roadAngle;
                 return { roadAngle: effectiveRoadAngle, correctionAngle, strength: 1 - minDist / 40 };
             }
@@ -1512,8 +1512,7 @@ const roadSystem = new RoadSystem();
 
 // Initialize roads - simple coordinate-based definition
 function initializeRoads() {
-    // Main grid - 3x3 intersections with larger blocks (4-lane roads)
-    // Horizontal roads
+    // Main grid - Horizontal
     roadSystem.addRoad(-2400, -1200, 9600, -1200, 'FOUR_LANE');
     roadSystem.addRoad(-2400, 0, 9600, 0, 'FOUR_LANE');
     roadSystem.addRoad(-2400, 1200, 9600, 1200, 'FOUR_LANE');
@@ -1527,7 +1526,7 @@ function initializeRoads() {
     roadSystem.addRoad(-2400, -2400, -2400, 9600, 'FOUR_LANE');
     roadSystem.addRoad(-2400, -2400, 9600, -2400, 'FOUR_LANE');
 
-    // Vertical roads
+    // Main grid - Vertical
     roadSystem.addRoad(-1200, -2400, -1200, 9600, 'FOUR_LANE');
     roadSystem.addRoad(0, -2400, 0, 9600, 'FOUR_LANE');
     roadSystem.addRoad(1200, -2400, 1200, 9600, 'FOUR_LANE');
@@ -1551,23 +1550,21 @@ function initializeRoads() {
     roadSystem.addMerge(-2400, 0, -4800, 0, 'FOUR_LANE', 'TWO_LANE');
     roadSystem.addPath([{"x":-4800,"y":0},{"x":-6087,"y":-81},{"x":-8367,"y":-366},{"x":-9886,"y":-745},{"x":-11311,"y":-1458},{"x":-12308,"y":-2123},{"x":-13257,"y":-2882},{"x":-14492,"y":-3500},{"x":-17293,"y":-4354},{"x":-19145,"y":-4639},{"x":-21425,"y":-4877},{"x":-23561,"y":-4877},{"x":-26268,"y":-4877},{"x":-29259,"y":-4782}], 'TWO_LANE');
 
-    //roadSystem.addPath([{"x":12051,"y":-1125},{"x":12241,"y":14},{"x":12241,"y":1249}], 'TWO_LANE');
-
     roadSystem.addPath([{"x":15755,"y":1486},{"x":15755,"y":821},{"x":15470,"y":-793},{"x":14900,"y":-2312}], 'TWO_LANE');
 
     roadSystem.addPath([{"x":-12450,"y":-2217},{"x":-13257,"y":-1268},{"x":-13637,"y":-461},{"x":-13970,"y":584},{"x":-14112,"y":1771},{"x":-14112,"y":3528},{"x":-14065,"y":4858},{"x":-13922,"y":5997},{"x":-13542,"y":7612},{"x":-13067,"y":9321},{"x":-12783,"y":10651},{"x":-12308,"y":12835},{"x":-11406,"y":14259},{"x":-10313,"y":15399},{"x":-8936,"y":16254},{"x":-6277,"y":17346},{"x":-2004,"y":17868},{"x":3457,"y":18153},{"x":8632,"y":17963},{"x":11766,"y":17536},{"x":14520,"y":16823},{"x":16230,"y":15969},{"x":17844,"y":14307},{"x":19269,"y":11885},{"x":19981,"y":9179},{"x":20171,"y":6045},{"x":20218,"y":3291},{"x":19886,"y":204},{"x":19269,"y":-2597},{"x":17085,"y":-5969},{"x":14948,"y":-7678},{"x":12384,"y":-9198},{"x":9487,"y":-10052},{"x":6163,"y":-10575},{"x":2460,"y":-10670},{"x":-2004,"y":-10385},{"x":-4425,"y":-9767},{"x":-6420,"y":-8438},{"x":-8414,"y":-6349},{"x":-10503,"y":-4497},{"x":-12403,"y":-2265}], 'TWO_LANE');
 
-    //roadSystem.addMerge(8400, 9600, 10800, 9600, 'FOUR_LANE', 'TWO_LANE');
-    //roadSystem.addPath([{"x":10800,"y":9600},{"x":8443,"y":11790},{"x":8443,"y":13594},{"x":8585,"y":15731},{"x":9060,"y":20052},{"x":9582,"y":23803},{"x":10104,"y":27032}], 'TWO_LANE');
+    roadSystem.addMerge(8400, 9600, 8400, 12000, 'FOUR_LANE', 'TWO_LANE');
+    roadSystem.addPath([{"x":8400,"y":12000},{"x":8680,"y":26747}], 'TWO_LANE');
 
-roadSystem.addMerge(8400, 9600, 10800, 9600, 'FOUR_LANE', 'TWO_LANE');
-roadSystem.addPath([{"x":10800,"y":9600},{"x":8348,"y":10888},{"x":8443,"y":13215},{"x":8680,"y":16349},{"x":9440,"y":20432},{"x":10769,"y":23993},{"x":12194,"y":27080}], 'TWO_LANE');
+    roadSystem.addMerge(9600, 8400, 12000, 8400, 'FOUR_LANE', 'TWO_LANE');
+    roadSystem.addPath([{"x":12000,"y":8400},{"x":37502,"y":7991}], 'TWO_LANE');
 
-roadSystem.addMerge(-2400, 8400, -4800, 8400, 'FOUR_LANE', 'TWO_LANE');
-roadSystem.addPath([{"x":-4800,"y":8400},{"x":-5945,"y":8324},{"x":-10836,"y":8276},{"x":-23324,"y":8941},{"x":-29449,"y":10176}], 'TWO_LANE');
+    roadSystem.addMerge(8400, -2400, 8400, -4800, 'FOUR_LANE', 'TWO_LANE');
+    roadSystem.addPath([{"x":8400,"y":-4800},{"x":8585,"y":-14706}], 'TWO_LANE');
 
-roadSystem.addMerge(1200, -2400, 3600, -2400, 'FOUR_LANE', 'TWO_LANE');
-roadSystem.addPath([{"x":3600,"y":-2400},{"x":1178,"y":-6064},{"x":893,"y":-8438},{"x":85,"y":-12284},{"x":-57,"y":-13993},{"x":38,"y":-15085},{"x":323,"y":-16415},{"x":513,"y":-16985}], 'TWO_LANE');
+    roadSystem.addMerge(-2400, 4800, -4800, 4800, 'FOUR_LANE', 'TWO_LANE');
+    roadSystem.addPath([{"x":-4800,"y":4800},{"x":-9744,"y":4953},{"x":-11263,"y":5047},{"x":-14539,"y":5570},{"x":-18433,"y":6519},{"x":-22944,"y":8229},{"x":-26458,"y":10223},{"x":-29402,"y":11933}], 'TWO_LANE');
 
     roadSystem.buildIntersections();
 }

@@ -22,6 +22,7 @@ function createPoliceCar(x, y, followTarget = null) {
         // PHYSICS
         vx: 0,                   // Velocity X (for collisions/sliding)
         vy: 0,                   // Velocity Y (for collisions/sliding)
+        steerHoldTime: 0,        // How long steering has been held
 
         // AI & EFFECTS
         followTarget: followTarget,  // Target car to follow (for AI)
@@ -429,8 +430,16 @@ function updatePoliceCar(car, otherCar) {
 
     // STEERING (A/D keys - only works when moving)
     const steerDirection = car.speed < 0 ? -1 : 1;
-    if (keys['a']) car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed * steerDirection;
-    if (keys['d']) car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed * steerDirection;
+    const speedRatio = Math.abs(car.speed) / car.maxSpeed;
+    
+    if (keys['a'] || keys['d']) {
+        car.steerHoldTime++;
+        const dampening = speedRatio > 0.7 && car.steerHoldTime < 8 ? 0.3 : 1.0;
+        if (keys['a']) car.angle -= car.turnSpeed * speedRatio * steerDirection * dampening;
+        if (keys['d']) car.angle += car.turnSpeed * speedRatio * steerDirection * dampening;
+    } else {
+        car.steerHoldTime = 0;
+    }
 
     // POSITION UPDATE (movement + collision velocity)
     car.x += Math.cos(car.angle) * car.speed + car.vx;
@@ -438,12 +447,13 @@ function updatePoliceCar(car, otherCar) {
     
     // LANE ASSISTANCE (steering angle adjustment)
     const laneAssist = roadSystem.getLaneAssist(car);
-    if (laneAssist && Math.abs(car.speed) > 0.5) {
+    const isActivelySteering = keys['a'] || keys['d'];
+    if (laneAssist && Math.abs(car.speed) > 0.5 && !isActivelySteering) {
         const targetAngle = laneAssist.roadAngle + laneAssist.correctionAngle;
         let angleDiff = targetAngle - car.angle;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        car.angle += angleDiff * 0.05 * laneAssist.strength;
+        car.angle += angleDiff * 0.08 * laneAssist.strength;
     }
 
     // VELOCITY DECAY (sliding from collisions fades out)

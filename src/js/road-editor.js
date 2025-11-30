@@ -71,10 +71,34 @@ window.addEventListener('keydown', e => {
                 console.log(`\n// Path ${i + 1}`);
                 if (pathData.startJunction) {
                     const tj = pathData.startJunction;
-                    const offset = tj.x === -2400 ? -2400 : 2400;
-                    const mergeEnd = {x: tj.x + offset, y: tj.y};
+                    const secondPt = pathData.points[1] || pathData.points[0];
+                    const dx = Math.abs(secondPt.x - tj.x);
+                    const dy = Math.abs(secondPt.y - tj.y);
+                    const isVertical = dy > dx;
+                    
+                    let mergeEnd, offset;
+                    if (isVertical) {
+                        offset = tj.y === -2400 ? -2400 : 2400;
+                        mergeEnd = {x: tj.x, y: tj.y + offset};
+                    } else {
+                        offset = tj.x === -2400 ? -2400 : 2400;
+                        mergeEnd = {x: tj.x + offset, y: tj.y};
+                    }
                     console.log(`roadSystem.addMerge(${tj.x}, ${tj.y}, ${mergeEnd.x}, ${mergeEnd.y}, 'FOUR_LANE', 'TWO_LANE');`);
-                    const snappedPath = [{x: mergeEnd.x, y: mergeEnd.y}, ...pathData.points.slice(1)];
+                    
+                    let firstValidIdx = 1;
+                    for (let i = 1; i < pathData.points.length; i++) {
+                        const pt = pathData.points[i];
+                        const pastMerge = isVertical ? 
+                            (offset > 0 ? pt.y > mergeEnd.y : pt.y < mergeEnd.y) :
+                            (offset > 0 ? pt.x > mergeEnd.x : pt.x < mergeEnd.x);
+                        if (pastMerge) {
+                            firstValidIdx = i;
+                            break;
+                        }
+                    }
+                    
+                    const snappedPath = [{x: mergeEnd.x, y: mergeEnd.y}, ...pathData.points.slice(firstValidIdx)];
                     console.log(`roadSystem.addPath(${JSON.stringify(snappedPath)}, 'TWO_LANE');`);
                 } else {
                     console.log(`roadSystem.addPath(${JSON.stringify(pathData.points)}, 'TWO_LANE');`);
