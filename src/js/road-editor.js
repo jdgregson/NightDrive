@@ -27,6 +27,15 @@ window.addEventListener('keydown', e => {
     }
     
     if (editorMode) {
+        if (e.key.toLowerCase() === 'z' && e.ctrlKey) {
+            e.preventDefault();
+            if (currentPath.length > 0) {
+                const removed = currentPath.pop();
+                if (currentPath.length === 0) editorMergePoint = null;
+                console.log(`Undid point: {x:${removed.x}, y:${removed.y}}`);
+            }
+            return;
+        }
         if (e.key.toLowerCase() === 'c') {
             if (currentPath.length > 1) {
                 const pathData = {
@@ -73,7 +82,7 @@ window.addEventListener('keydown', e => {
             });
             console.log('\n======================');
         }
-        if (e.key.toLowerCase() === 'z') {
+        if (e.key.toLowerCase() === 's') {
             savedPaths = [];
             console.log('All saved paths cleared');
         }
@@ -198,6 +207,6 @@ function drawEditorOverlay(ctx) {
     ctx.fillStyle = 'white';
     ctx.font = '12px monospace';
     ctx.fillText('Click map to add points', 20, canvas.height - 60);
-    ctx.fillText('C: Complete path  X: Clear  P: Print all', 20, canvas.height - 40);
-    ctx.fillText('Z: Clear all saved  Ctrl+E: Exit editor', 20, canvas.height - 20);
+    ctx.fillText('C: Complete  X: Clear  Ctrl+Z: Undo', 20, canvas.height - 40);
+    ctx.fillText('P: Print  S: Clear saved  Ctrl+E: Exit', 20, canvas.height - 20);
 }

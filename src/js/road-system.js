@@ -7,7 +7,7 @@ const ROAD_WIDTH_DIRT = 80;
 
 const ROAD_TYPES = {
     FOUR_LANE: { width: 240, lanes: [-75, -25, 25, 75], color: '#050505', edgeColor: '#0f0f0f' },
-    TWO_LANE: { width: 120, lanes: [-30, 30], color: '#050505', edgeColor: '#0f0f0f' },
+    TWO_LANE: { width: 120, lanes: [-30, 30], color: '#050505', edgeColor: '#050505' },
     DIRT: { width: 80, lanes: [0], color: '#3a2a1a', edgeColor: '#2a1a0a' }
 };
 
@@ -207,7 +207,8 @@ class RoadSystem {
                             return {
                                 x: intersection.x,
                                 y: intersection.y,
-                                size: bothTwoLane ? path1.width : Math.max(path1.width, path2.width),
+                                // ADJUST THIS to change intersection grey box size (path1.width is 120 for TWO_LANE)
+                                size: bothTwoLane ? path1.width: Math.max(path1.width, path2.width), // <-- Change path1.width to a number like 140
                                 type: bothTwoLane ? 'FULL' : 'PATH_CROSS',
                                 roads: [path1, path2],
                                 angle: bothTwoLane ? angle1 : undefined
@@ -257,7 +258,8 @@ class RoadSystem {
             return {
                 x: avgX / count,
                 y: avgY / count,
-                size: bothTwoLane ? path1.width : Math.max(path1.width, path2.width),
+                // ADJUST THIS to change intersection grey box size (path1.width is 120 for TWO_LANE)
+                size: bothTwoLane ? path1.width : Math.max(path1.width, path2.width), // <-- Change path1.width to a number like 140
                 type: bothTwoLane ? 'FULL' : 'PATH_CROSS',
                 roads: [path1, path2],
                 angle: bothTwoLane && angleCount > 0 ? angleSum / angleCount : undefined
@@ -628,15 +630,19 @@ class RoadSystem {
         // Draw intersections
         for (const intersection of this.intersections) {
             if (intersection.type === 'FULL' && intersection.angle !== undefined) {
-                const half = intersection.size / 2;
+                // ADJUST intersection.size HERE to change the grey box size for rotated two-lane intersections
+                const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
+                const angle = intersection.angle + (typeof debugConfig !== 'undefined' ? debugConfig.angleOffset : 0);
+                const half = size / 2; // <-- Change intersection.size in findPathIntersection() function
                 ctx.save();
                 ctx.translate(intersection.x, intersection.y);
-                ctx.rotate(intersection.angle);
-                ctx.fillStyle = '#050505';
-                ctx.fillRect(-half, -half, intersection.size, intersection.size);
+                ctx.rotate(angle);
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(-half, -half, size, size);
                 ctx.restore();
             } else if ((intersection.type === 'PATH_CROSS' || intersection.type === 'PATH_T') && intersection.roads.every(r => r.type === 'TWO_LANE')) {
-                const half = intersection.size / 2;
+                // ADJUST intersection.size HERE to change the grey box size for non-rotated two-lane intersections
+                const half = intersection.size / 2; // <-- Change intersection.size in findPathIntersection() function
                 ctx.fillStyle = '#050505';
                 ctx.fillRect(intersection.x - half, intersection.y - half, intersection.size, intersection.size);
             } else if (intersection.type === 'PATH_CROSS' || intersection.type === 'PATH_T') {
@@ -838,28 +844,120 @@ class RoadSystem {
     }
 
     drawPathRoad(ctx, road) {
-        // Draw shoulders
-        ctx.strokeStyle = road.roadType.edgeColor;
-        ctx.lineWidth = road.width + 40;
-        ctx.lineCap = 'butt';
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
-        for (const seg of road.segments) {
-            ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
-        }
-        ctx.stroke();
+        // Find intersections that involve this road
+        const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
 
-        // Draw road surface
-        ctx.strokeStyle = road.roadType.color;
-        ctx.lineWidth = road.width;
-        ctx.lineCap = 'butt';
-        ctx.beginPath();
-        ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
-        for (const seg of road.segments) {
-            ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+        if (roadIntersections.length > 0 && road.type === 'TWO_LANE') {
+            // For two-lane roads with intersections, clip shoulders at intersections
+            const samples = 50;
+            const pathPoints = [];
+
+            // Sample points along the path
+            for (const seg of road.segments) {
+                for (let i = 0; i <= samples; i++) {
+                    const t = i / samples;
+                    const point = this.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                    const angle = this.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+
+                    // Check if point is inside an intersection
+                    let nearIntersection = false;
+                    for (const intersection of roadIntersections) {
+                        if (intersection.angle !== undefined) {
+                            // Rotated rectangle intersection (extended for shoulders)
+                            const angle = intersection.angle + (typeof debugConfig !== 'undefined' ? debugConfig.angleOffset : 0);
+                            const dx = point.x - intersection.x;
+                            const dy = point.y - intersection.y;
+                            const rotX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+                            const rotY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+                            // ADJUST THIS VALUE to change shoulder clipping distance (positive = extend beyond intersection, negative = stop before intersection)
+                            const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
+                            const half = size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.shoulderClip : 20);
+                            if (Math.abs(rotX) < half && Math.abs(rotY) < half) {
+                                nearIntersection = true;
+                                break;
+                            }
+                        } else {
+                            const dist = Math.sqrt((point.x - intersection.x) ** 2 + (point.y - intersection.y) ** 2);
+                            // ADJUST THIS VALUE for non-rotated intersections
+                            const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
+                            if (dist < size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.shoulderClip : 20)) {
+                                nearIntersection = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    pathPoints.push({ point, angle, nearIntersection });
+                }
+            }
+
+            // Draw shoulders in segments
+            ctx.strokeStyle = road.roadType.edgeColor;
+            ctx.lineWidth = road.width + 40;
+            ctx.lineCap = 'butt';
+            ctx.lineJoin = 'round';
+            let drawing = false;
+            for (const pp of pathPoints) {
+                if (!pp.nearIntersection) {
+                    if (!drawing) {
+                        ctx.beginPath();
+                        ctx.moveTo(pp.point.x, pp.point.y);
+                        drawing = true;
+                    } else {
+                        ctx.lineTo(pp.point.x, pp.point.y);
+                    }
+                } else if (drawing) {
+                    ctx.stroke();
+                    drawing = false;
+                }
+            }
+            if (drawing) ctx.stroke();
+
+            // Draw road surface in segments
+            ctx.strokeStyle = road.roadType.color;
+            ctx.lineWidth = road.width;
+            ctx.lineCap = 'butt';
+            drawing = false;
+            for (const pp of pathPoints) {
+                if (!pp.nearIntersection) {
+                    if (!drawing) {
+                        ctx.beginPath();
+                        ctx.moveTo(pp.point.x, pp.point.y);
+                        drawing = true;
+                    } else {
+                        ctx.lineTo(pp.point.x, pp.point.y);
+                    }
+                } else if (drawing) {
+                    ctx.stroke();
+                    drawing = false;
+                }
+            }
+            if (drawing) ctx.stroke();
+        } else {
+            // Draw normally for roads without intersections or non-two-lane roads
+            // Draw shoulders
+            ctx.strokeStyle = road.roadType.edgeColor;
+            ctx.lineWidth = road.width + 40;
+            ctx.lineCap = 'butt';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
+            for (const seg of road.segments) {
+                ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+            }
+            ctx.stroke();
+
+            // Draw road surface
+            ctx.strokeStyle = road.roadType.color;
+            ctx.lineWidth = road.width;
+            ctx.lineCap = 'butt';
+            ctx.beginPath();
+            ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
+            for (const seg of road.segments) {
+                ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
     }
 
     drawMergeRoad(ctx, road) {
@@ -1129,18 +1227,8 @@ class RoadSystem {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // Find nearby 4-lane roads to clip markings
-        const clipZones = [];
-        for (const otherRoad of this.roads) {
-            if (otherRoad.type === 'FOUR_LANE' && !otherRoad.isPath && !otherRoad.isCurved) {
-                const startDist = Math.sqrt((road.segments[0].p1.x - otherRoad.centerX) ** 2 + (road.segments[0].p1.y - otherRoad.centerY) ** 2);
-                const endDist = Math.sqrt((road.segments[road.segments.length - 1].p2.x - otherRoad.centerX) ** 2 + (road.segments[road.segments.length - 1].p2.y - otherRoad.centerY) ** 2);
-                if (startDist < 200) clipZones.push({ pos: road.segments[0].p1, size: 150 });
-                if (endDist < 200) clipZones.push({ pos: road.segments[road.segments.length - 1].p2, size: 150 });
-            }
-        }
-        
-
+        // Find intersections that involve this road
+        const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
 
         if (road.type === 'FOUR_LANE') {
             // Center yellow line
@@ -1195,35 +1283,93 @@ class RoadSystem {
                 ctx.stroke();
             }
         } else if (road.type === 'TWO_LANE') {
-            // Center yellow line
+            // Draw markings in segments, skipping intersections
+            const samples = 50;
+            const pathPoints = [];
+
+            // Sample points along the path
+            for (const seg of road.segments) {
+                for (let i = 0; i <= samples; i++) {
+                    const t = i / samples;
+                    const point = this.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                    const angle = this.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+
+                    // Check if point is inside an intersection
+                    let nearIntersection = false;
+                    for (const intersection of roadIntersections) {
+                        if (intersection.angle !== undefined) {
+                            // Rotated rectangle intersection (extended for markings)
+                            const angle = intersection.angle + (typeof debugConfig !== 'undefined' ? debugConfig.angleOffset : 0);
+                            const dx = point.x - intersection.x;
+                            const dy = point.y - intersection.y;
+                            const rotX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+                            const rotY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+                            const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
+                            const half = size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.markingClip : 5);
+                            if (Math.abs(rotX) < half && Math.abs(rotY) < half) {
+                                nearIntersection = true;
+                                break;
+                            }
+                        } else {
+                            const dist = Math.sqrt((point.x - intersection.x) ** 2 + (point.y - intersection.y) ** 2);
+                            const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
+                            if (dist < size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.markingClip : 5)) {
+                                nearIntersection = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    pathPoints.push({ point, angle, nearIntersection, seg, t });
+                }
+            }
+
+            // Draw center yellow line in segments
             ctx.strokeStyle = 'rgba(255, 200, 0, 0.4)';
             ctx.lineWidth = 2;
             ctx.setLineDash([15, 10]);
-            ctx.beginPath();
-            ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
-            for (const seg of road.segments) {
-                ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+            let drawing = false;
+            for (const pp of pathPoints) {
+                if (!pp.nearIntersection) {
+                    if (!drawing) {
+                        ctx.beginPath();
+                        ctx.moveTo(pp.point.x, pp.point.y);
+                        drawing = true;
+                    } else {
+                        ctx.lineTo(pp.point.x, pp.point.y);
+                    }
+                } else if (drawing) {
+                    ctx.stroke();
+                    drawing = false;
+                }
             }
-            ctx.stroke();
+            if (drawing) ctx.stroke();
 
-            // Edge lines
+            // Draw edge lines in segments
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.setLineDash([]);
             for (const offset of [-60, 60]) {
-                ctx.beginPath();
-                const start = this.offsetBezierPoint(road.segments[0].p1, road.segments[0].p1, road.segments[0].cp1, 0, offset);
-                ctx.moveTo(start.x, start.y);
-                for (const seg of road.segments) {
-                    const samples = 10;
-                    for (let i = 1; i <= samples; i++) {
-                        const t = i / samples;
-                        const point = this.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
-                        const angle = this.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
-                        const offsetPoint = { x: point.x - offset * Math.sin(angle), y: point.y + offset * Math.cos(angle) };
-                        ctx.lineTo(offsetPoint.x, offsetPoint.y);
+                drawing = false;
+                for (const pp of pathPoints) {
+                    const offsetPoint = {
+                        x: pp.point.x - offset * Math.sin(pp.angle),
+                        y: pp.point.y + offset * Math.cos(pp.angle)
+                    };
+
+                    if (!pp.nearIntersection) {
+                        if (!drawing) {
+                            ctx.beginPath();
+                            ctx.moveTo(offsetPoint.x, offsetPoint.y);
+                            drawing = true;
+                        } else {
+                            ctx.lineTo(offsetPoint.x, offsetPoint.y);
+                        }
+                    } else if (drawing) {
+                        ctx.stroke();
+                        drawing = false;
                     }
                 }
-                ctx.stroke();
+                if (drawing) ctx.stroke();
             }
         }
     }
@@ -1408,6 +1554,20 @@ function initializeRoads() {
     //roadSystem.addPath([{"x":12051,"y":-1125},{"x":12241,"y":14},{"x":12241,"y":1249}], 'TWO_LANE');
 
     roadSystem.addPath([{"x":15755,"y":1486},{"x":15755,"y":821},{"x":15470,"y":-793},{"x":14900,"y":-2312}], 'TWO_LANE');
+
+    roadSystem.addPath([{"x":-12450,"y":-2217},{"x":-13257,"y":-1268},{"x":-13637,"y":-461},{"x":-13970,"y":584},{"x":-14112,"y":1771},{"x":-14112,"y":3528},{"x":-14065,"y":4858},{"x":-13922,"y":5997},{"x":-13542,"y":7612},{"x":-13067,"y":9321},{"x":-12783,"y":10651},{"x":-12308,"y":12835},{"x":-11406,"y":14259},{"x":-10313,"y":15399},{"x":-8936,"y":16254},{"x":-6277,"y":17346},{"x":-2004,"y":17868},{"x":3457,"y":18153},{"x":8632,"y":17963},{"x":11766,"y":17536},{"x":14520,"y":16823},{"x":16230,"y":15969},{"x":17844,"y":14307},{"x":19269,"y":11885},{"x":19981,"y":9179},{"x":20171,"y":6045},{"x":20218,"y":3291},{"x":19886,"y":204},{"x":19269,"y":-2597},{"x":17085,"y":-5969},{"x":14948,"y":-7678},{"x":12384,"y":-9198},{"x":9487,"y":-10052},{"x":6163,"y":-10575},{"x":2460,"y":-10670},{"x":-2004,"y":-10385},{"x":-4425,"y":-9767},{"x":-6420,"y":-8438},{"x":-8414,"y":-6349},{"x":-10503,"y":-4497},{"x":-12403,"y":-2265}], 'TWO_LANE');
+
+    //roadSystem.addMerge(8400, 9600, 10800, 9600, 'FOUR_LANE', 'TWO_LANE');
+    //roadSystem.addPath([{"x":10800,"y":9600},{"x":8443,"y":11790},{"x":8443,"y":13594},{"x":8585,"y":15731},{"x":9060,"y":20052},{"x":9582,"y":23803},{"x":10104,"y":27032}], 'TWO_LANE');
+
+roadSystem.addMerge(8400, 9600, 10800, 9600, 'FOUR_LANE', 'TWO_LANE');
+roadSystem.addPath([{"x":10800,"y":9600},{"x":8348,"y":10888},{"x":8443,"y":13215},{"x":8680,"y":16349},{"x":9440,"y":20432},{"x":10769,"y":23993},{"x":12194,"y":27080}], 'TWO_LANE');
+
+roadSystem.addMerge(-2400, 8400, -4800, 8400, 'FOUR_LANE', 'TWO_LANE');
+roadSystem.addPath([{"x":-4800,"y":8400},{"x":-5945,"y":8324},{"x":-10836,"y":8276},{"x":-23324,"y":8941},{"x":-29449,"y":10176}], 'TWO_LANE');
+
+roadSystem.addMerge(1200, -2400, 3600, -2400, 'FOUR_LANE', 'TWO_LANE');
+roadSystem.addPath([{"x":3600,"y":-2400},{"x":1178,"y":-6064},{"x":893,"y":-8438},{"x":85,"y":-12284},{"x":-57,"y":-13993},{"x":38,"y":-15085},{"x":323,"y":-16415},{"x":513,"y":-16985}], 'TWO_LANE');
 
     roadSystem.buildIntersections();
 }

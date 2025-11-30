@@ -1,4 +1,4 @@
-const playerCar = createPoliceCar(0, 0);
+const playerCar = createPoliceCar(15138, 14);
 const aiCar = createPoliceCar(-150, 0);
 const aiCar2 = createPoliceCar(150, 150, playerCar);
 const regularCar = createRegularCar(-400, -300, '#1a4d8f', aiCar2);
