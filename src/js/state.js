@@ -55,3 +55,5 @@ let mouseWorldY = 0;
 let ambientLight = 0.02;
 let lastSparkTime = 0;
 let showFullMap = false;
+let rotateWorld = true;
+let cameraAngle = Math.PI / 2;

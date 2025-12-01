@@ -2,6 +2,7 @@ window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     keys[key] = true;
     if (key === 'm') showFullMap = true;
+    if (key === 'x') rotateWorld = !rotateWorld;
     if (key === 'l' && !lKeyPressed) {
         lKeyPressed = true;
         lightsOn = !lightsOn;
@@ -44,6 +45,16 @@ canvas.addEventListener('mouseup', () => {
 });
 
 canvas.addEventListener('mousemove', e => {
-    mouseWorldX = e.clientX + camera.x;
-    mouseWorldY = e.clientY + camera.y;
+    if (rotateWorld) {
+        const dx = e.clientX - canvas.width / 2;
+        const dy = e.clientY - canvas.height / 2;
+        const rotatedAngle = -cameraAngle - Math.PI / 2;
+        const cos = Math.cos(-rotatedAngle);
+        const sin = Math.sin(-rotatedAngle);
+        mouseWorldX = car.x + (dx * cos - dy * sin);
+        mouseWorldY = car.y + (dx * sin + dy * cos);
+    } else {
+        mouseWorldX = e.clientX + camera.x;
+        mouseWorldY = e.clientY + camera.y;
+    }
 });

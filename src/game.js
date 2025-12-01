@@ -7,6 +7,7 @@ console.log('  • SHIFT + W to drive fast');
 console.log('  • Toggle headlights: H key');
 console.log('  • Toggle police lights: L key');
 console.log('  • Toggle police sirens: K key');
+console.log('  • Toggle camera mode: X key');
 console.log('  • Spotlight: Hold mouse button');
 console.log('  • Ambient light: +/- keys');
 console.log('%cPerformance Tip:', 'font-weight: bold; color: orange;');

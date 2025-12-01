@@ -1,12 +1,18 @@
 function draw() {
     profiler.start('draw_total');
-    
+
     profiler.start('draw_terrain');
     drawTerrain();
     profiler.end('draw_terrain');
 
     ctx.save();
-    ctx.translate(-camera.x, -camera.y);
+    if (rotateWorld) {
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(-cameraAngle - Math.PI / 2);
+        ctx.translate(-car.x, -car.y);
+    } else {
+        ctx.translate(-camera.x, -camera.y);
+    }
     drawRoads();
     ctx.restore();
 
@@ -16,7 +22,13 @@ function draw() {
     }
 
     ctx.save();
-    ctx.translate(-camera.x, -camera.y);
+    if (rotateWorld) {
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(-cameraAngle - Math.PI / 2);
+        ctx.translate(-car.x, -car.y);
+    } else {
+        ctx.translate(-camera.x, -camera.y);
+    }
 
     ctx.fillStyle = `rgba(40, 40, 50, ${Math.min(ambientLight * 10, 1)})`;
     for (const obs of obstacles) {
@@ -348,7 +360,7 @@ function draw() {
     drawDebugBoundingBoxes();
 
     ctx.restore();
-    
+
     profiler.start('draw_minimap');
     if (showFullMap) {
         drawFullMap();
@@ -357,9 +369,9 @@ function draw() {
         drawMinimap();
     }
     profiler.end('draw_minimap');
-    
+
     profiler.end('draw_total');
-    
+
     const degrees = Math.round((car.angle * 180 / Math.PI + 360) % 360);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(10, 10, 250, 20);

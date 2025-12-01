@@ -1,4 +1,5 @@
 const playerCar = createPoliceCar(15138, 14);
+playerCar.angle = Math.PI / 2;
 const aiCar = createPoliceCar(-150, 0);
 const aiCar2 = createPoliceCar(150, 150, playerCar);
 const regularCar = createRegularCar(-400, -300, '#1a4d8f', aiCar2);
@@ -160,8 +161,17 @@ function update() {
     }
     profiler.end('update_debris');
 
-    camera.x = car.x - canvas.width / 2;
-    camera.y = car.y - canvas.height / 2;
+    if (rotateWorld) {
+        let angleDiff = car.angle - cameraAngle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        cameraAngle += angleDiff * 0.1;
+        camera.x = car.x;
+        camera.y = car.y;
+    } else {
+        camera.x = car.x - canvas.width / 2;
+        camera.y = car.y - canvas.height / 2;
+    }
 
     profiler.end('update_total');
 }
