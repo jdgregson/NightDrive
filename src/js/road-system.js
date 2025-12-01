@@ -189,7 +189,7 @@ class RoadSystem {
         // Check for crossings
         for (const seg1 of path1.segments) {
             for (const seg2 of path2.segments) {
-                const samples = 10;
+                const samples = 100;
                 for (let i = 0; i < samples; i++) {
                     const t1 = i / samples;
                     const p1 = this.bezierPoint(seg1.p1, seg1.cp1, seg1.cp2, seg1.p2, t1);
@@ -208,7 +208,7 @@ class RoadSystem {
                                 x: intersection.x,
                                 y: intersection.y,
                                 // ADJUST THIS to change intersection grey box size (path1.width is 120 for TWO_LANE)
-                                size: bothTwoLane ? path1.width: Math.max(path1.width, path2.width), // <-- Change path1.width to a number like 140
+                                size: bothTwoLane ? path1.width + 40 : Math.max(path1.width, path2.width), // <-- Change path1.width to a number like 140
                                 type: bothTwoLane ? 'FULL' : 'PATH_CROSS',
                                 roads: [path1, path2],
                                 angle: bothTwoLane ? angle1 : undefined
@@ -259,7 +259,7 @@ class RoadSystem {
                 x: avgX / count,
                 y: avgY / count,
                 // ADJUST THIS to change intersection grey box size (path1.width is 120 for TWO_LANE)
-                size: bothTwoLane ? path1.width : Math.max(path1.width, path2.width), // <-- Change path1.width to a number like 140
+                size: bothTwoLane ? path1.width + 40 : Math.max(path1.width, path2.width), // <-- Change path1.width to a number like 140
                 type: bothTwoLane ? 'FULL' : 'PATH_CROSS',
                 roads: [path1, path2],
                 angle: bothTwoLane && angleCount > 0 ? angleSum / angleCount : undefined
@@ -278,7 +278,7 @@ class RoadSystem {
                     return {
                         x: (endpoints[i].point.x + endpoints[j].point.x) / 2,
                         y: (endpoints[i].point.y + endpoints[j].point.y) / 2,
-                        size: bothTwoLane ? path1.width : Math.max(path1.width, path2.width),
+                        size: bothTwoLane ? path1.width + 40 : Math.max(path1.width, path2.width),
                         type: bothTwoLane ? 'PATH_T' : 'PATH_T',
                         roads: [path1, path2],
                         angle: bothTwoLane ? (angle1 + angle2) / 2 : undefined
@@ -666,7 +666,7 @@ class RoadSystem {
                 ctx.save();
                 ctx.translate(intersection.x, intersection.y);
                 ctx.rotate(angle);
-                ctx.fillStyle = '#1a1a1a';
+                ctx.fillStyle = '#050505';
                 ctx.fillRect(-half, -half, size, size);
                 ctx.restore();
             } else if ((intersection.type === 'PATH_CROSS' || intersection.type === 'PATH_T') && intersection.roads.every(r => r.type === 'TWO_LANE')) {
@@ -873,120 +873,28 @@ class RoadSystem {
     }
 
     drawPathRoad(ctx, road) {
-        // Find intersections that involve this road
-        const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
-
-        if (roadIntersections.length > 0 && road.type === 'TWO_LANE') {
-            // For two-lane roads with intersections, clip shoulders at intersections
-            const samples = 50;
-            const pathPoints = [];
-
-            // Sample points along the path
-            for (const seg of road.segments) {
-                for (let i = 0; i <= samples; i++) {
-                    const t = i / samples;
-                    const point = this.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
-                    const angle = this.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
-
-                    // Check if point is inside an intersection
-                    let nearIntersection = false;
-                    for (const intersection of roadIntersections) {
-                        if (intersection.angle !== undefined) {
-                            // Rotated rectangle intersection (extended for shoulders)
-                            const angle = intersection.angle + (typeof debugConfig !== 'undefined' ? debugConfig.angleOffset : 0);
-                            const dx = point.x - intersection.x;
-                            const dy = point.y - intersection.y;
-                            const rotX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
-                            const rotY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
-                            // ADJUST THIS VALUE to change shoulder clipping distance (positive = extend beyond intersection, negative = stop before intersection)
-                            const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
-                            const half = size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.shoulderClip : 20);
-                            if (Math.abs(rotX) < half && Math.abs(rotY) < half) {
-                                nearIntersection = true;
-                                break;
-                            }
-                        } else {
-                            const dist = Math.sqrt((point.x - intersection.x) ** 2 + (point.y - intersection.y) ** 2);
-                            // ADJUST THIS VALUE for non-rotated intersections
-                            const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
-                            if (dist < size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.shoulderClip : 20)) {
-                                nearIntersection = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    pathPoints.push({ point, angle, nearIntersection });
-                }
-            }
-
-            // Draw shoulders in segments
-            ctx.strokeStyle = road.roadType.edgeColor;
-            ctx.lineWidth = road.width + 40;
-            ctx.lineCap = 'butt';
-            ctx.lineJoin = 'round';
-            let drawing = false;
-            for (const pp of pathPoints) {
-                if (!pp.nearIntersection) {
-                    if (!drawing) {
-                        ctx.beginPath();
-                        ctx.moveTo(pp.point.x, pp.point.y);
-                        drawing = true;
-                    } else {
-                        ctx.lineTo(pp.point.x, pp.point.y);
-                    }
-                } else if (drawing) {
-                    ctx.stroke();
-                    drawing = false;
-                }
-            }
-            if (drawing) ctx.stroke();
-
-            // Draw road surface in segments
-            ctx.strokeStyle = road.roadType.color;
-            ctx.lineWidth = road.width;
-            ctx.lineCap = 'butt';
-            drawing = false;
-            for (const pp of pathPoints) {
-                if (!pp.nearIntersection) {
-                    if (!drawing) {
-                        ctx.beginPath();
-                        ctx.moveTo(pp.point.x, pp.point.y);
-                        drawing = true;
-                    } else {
-                        ctx.lineTo(pp.point.x, pp.point.y);
-                    }
-                } else if (drawing) {
-                    ctx.stroke();
-                    drawing = false;
-                }
-            }
-            if (drawing) ctx.stroke();
-        } else {
-            // Draw normally for roads without intersections or non-two-lane roads
-            // Draw shoulders
-            ctx.strokeStyle = road.roadType.edgeColor;
-            ctx.lineWidth = road.width + 40;
-            ctx.lineCap = 'butt';
-            ctx.lineJoin = 'round';
-            ctx.beginPath();
-            ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
-            for (const seg of road.segments) {
-                ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
-            }
-            ctx.stroke();
-
-            // Draw road surface
-            ctx.strokeStyle = road.roadType.color;
-            ctx.lineWidth = road.width;
-            ctx.lineCap = 'butt';
-            ctx.beginPath();
-            ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
-            for (const seg of road.segments) {
-                ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
-            }
-            ctx.stroke();
+        // Draw shoulders
+        ctx.strokeStyle = road.roadType.edgeColor;
+        ctx.lineWidth = road.width + 40;
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
+        for (const seg of road.segments) {
+            ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
         }
+        ctx.stroke();
+
+        // Draw road surface
+        ctx.strokeStyle = road.roadType.color;
+        ctx.lineWidth = road.width;
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        ctx.moveTo(road.segments[0].p1.x, road.segments[0].p1.y);
+        for (const seg of road.segments) {
+            ctx.bezierCurveTo(seg.cp1.x, seg.cp1.y, seg.cp2.x, seg.cp2.y, seg.p2.x, seg.p2.y);
+        }
+        ctx.stroke();
     }
 
     drawMergeRoad(ctx, road) {
@@ -1258,6 +1166,20 @@ class RoadSystem {
 
         // Find intersections that involve this road
         const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
+        
+        // Also check for nearby intersections
+        const nearbyIntersections = this.intersections.filter(i => {
+            if (i.roads.includes(road)) return false;
+            for (const seg of road.segments) {
+                for (let t = 0; t <= 1; t += 0.1) {
+                    const point = this.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                    const dist = Math.hypot(point.x - i.x, point.y - i.y);
+                    if (dist < 300) return true;
+                }
+            }
+            return false;
+        });
+        const allIntersections = [...roadIntersections, ...nearbyIntersections];
 
         if (road.type === 'FOUR_LANE') {
             // Center yellow line
@@ -1313,7 +1235,7 @@ class RoadSystem {
             }
         } else if (road.type === 'TWO_LANE') {
             // Draw markings in segments, skipping intersections
-            const samples = 50;
+            const samples = 100;
             const pathPoints = [];
 
             // Sample points along the path
@@ -1325,7 +1247,7 @@ class RoadSystem {
 
                     // Check if point is inside an intersection
                     let nearIntersection = false;
-                    for (const intersection of roadIntersections) {
+                    for (const intersection of allIntersections) {
                         if (intersection.angle !== undefined) {
                             // Rotated rectangle intersection (extended for markings)
                             const angle = intersection.angle + (typeof debugConfig !== 'undefined' ? debugConfig.angleOffset : 0);
@@ -1334,15 +1256,16 @@ class RoadSystem {
                             const rotX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
                             const rotY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
                             const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
-                            const half = size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.markingClip : 5);
-                            if (Math.abs(rotX) < half && Math.abs(rotY) < half) {
+                            const half = size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.markingClip : -20);
+                            const maxDim = Math.max(Math.abs(rotX), Math.abs(rotY));
+                            if (maxDim < half) {
                                 nearIntersection = true;
                                 break;
                             }
                         } else {
                             const dist = Math.sqrt((point.x - intersection.x) ** 2 + (point.y - intersection.y) ** 2);
                             const size = typeof debugConfig !== 'undefined' ? debugConfig.intersectionSize : intersection.size;
-                            if (dist < size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.markingClip : 5)) {
+                            if (dist < size / 2 + (typeof debugConfig !== 'undefined' ? debugConfig.markingClip : -20)) {
                                 nearIntersection = true;
                                 break;
                             }

@@ -360,9 +360,10 @@ function draw() {
     
     profiler.end('draw_total');
     
+    const degrees = Math.round((car.angle * 180 / Math.PI + 360) % 360);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(10, 10, 60, 20);
+    ctx.fillRect(10, 10, 250, 20);
     ctx.fillStyle = '#00ff00';
     ctx.font = '12px monospace';
-    ctx.fillText(`FPS: ${profiler.fpsDisplay}`, 15, 24);
+    ctx.fillText(`FPS: ${profiler.fpsDisplay} | X: ${Math.round(car.x)} Y: ${Math.round(car.y)} | ${degrees}°`, 15, 24);
 }
