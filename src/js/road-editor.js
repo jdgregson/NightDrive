@@ -3,6 +3,12 @@ let editorMode = false;
 let currentPath = [];
 let savedPaths = [];
 let editorMergePoint = null;
+let brushMode = 'road'; // 'road', 'water', 'forest'
+let brushSize = 800;
+let waterStrokes = [];
+let forestStrokes = [];
+let currentStrokes = [];
+let isPainting = false;
 
 const tJunctions = [
     {x:9600,y:-1200},{x:9600,y:0},{x:9600,y:1200},{x:9600,y:2400},{x:9600,y:3600},{x:9600,y:4800},
@@ -23,6 +29,7 @@ window.addEventListener('keydown', e => {
         console.log(`Road Editor Mode: ${editorMode ? 'ON' : 'OFF'}`);
         if (editorMode) {
             console.log('Click on map to draw road points. Press C to complete path. Press X to clear. Press P to print all paths.');
+            console.log('Press 1: Road mode, 2: Water mode, 3: Forest mode');
         }
     }
     
@@ -110,25 +117,60 @@ window.addEventListener('keydown', e => {
             savedPaths = [];
             console.log('All saved paths cleared');
         }
+        if (e.key === '1') {
+            brushMode = 'road';
+            console.log('Brush mode: ROAD');
+        }
+        if (e.key === '2') {
+            brushMode = 'water';
+            console.log('Brush mode: WATER');
+        }
+        if (e.key === '3') {
+            brushMode = 'forest';
+            console.log('Brush mode: FOREST');
+        }
+        if (e.key.toLowerCase() === 'f') {
+            if (currentStrokes.length > 0) {
+                const simplified = [];
+                for (let i = 0; i < currentStrokes.length; i += 3) {
+                    simplified.push({x: Math.round(currentStrokes[i].x), y: Math.round(currentStrokes[i].y)});
+                }
+                console.log(`${brushMode === 'water' ? 'Water' : 'Forest'} path:`);
+                console.log(`  width: ${brushSize}`);
+                console.log(`  path: ${JSON.stringify(simplified)}`);
+                currentStrokes = [];
+            }
+        }
     }
 });
 
-function handleEditorClick(e) {
-    if (!editorMode) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    
+function screenToWorld(screenX, screenY) {
     let minX = -15000, maxX = 25000, minY = -15000, maxY = 25000;
     const worldWidth = maxX - minX;
     const worldHeight = maxY - minY;
     const scale = Math.min(canvas.width / worldWidth, canvas.height / worldHeight) * 0.9;
     const offsetX = (canvas.width - worldWidth * scale) / 2;
     const offsetY = (canvas.height - worldHeight * scale) / 2;
+    return {
+        x: Math.round((screenX - offsetX) / scale + minX),
+        y: Math.round((screenY - offsetY) / scale + minY)
+    };
+}
+
+function handleEditorClick(e) {
+    if (!editorMode) return;
     
-    const worldX = Math.round((clickX - offsetX) / scale + minX);
-    const worldY = Math.round((clickY - offsetY) / scale + minY);
+    const rect = canvas.getBoundingClientRect();
+    const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+    
+    if (brushMode === 'water' || brushMode === 'forest') {
+        isPainting = true;
+        const stroke = {x: world.x, y: world.y};
+        currentStrokes.push(stroke);
+        if (brushMode === 'water') waterStrokes.push(stroke);
+        else forestStrokes.push(stroke);
+        return;
+    }
     
     let nearJunction = null;
     for (const tj of tJunctions) {
@@ -152,7 +194,25 @@ function handleEditorClick(e) {
     }
 }
 
-canvas.addEventListener('click', handleEditorClick);
+canvas.addEventListener('mousedown', handleEditorClick);
+
+canvas.addEventListener('mousemove', e => {
+    if (!editorMode || !isPainting || brushMode === 'road') return;
+    const rect = canvas.getBoundingClientRect();
+    const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+    const lastStroke = currentStrokes[currentStrokes.length - 1];
+    if (!lastStroke || Math.hypot(world.x - lastStroke.x, world.y - lastStroke.y) > 100) {
+        const stroke = {x: world.x, y: world.y};
+        currentStrokes.push(stroke);
+        if (brushMode === 'water') waterStrokes.push(stroke);
+        else forestStrokes.push(stroke);
+    }
+});
+
+canvas.addEventListener('mouseup', e => {
+    if (!editorMode) return;
+    isPainting = false;
+});
 
 function drawEditorOverlay(ctx) {
     if (!editorMode) return;
@@ -221,16 +281,33 @@ function drawEditorOverlay(ctx) {
         }
     }
     
+    ctx.fillStyle = 'rgb(0, 100, 255)';
+    for (const stroke of waterStrokes) {
+        ctx.beginPath();
+        ctx.arc(stroke.x, stroke.y, brushSize/2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.fillStyle = 'rgb(34, 139, 34)';
+    for (const stroke of forestStrokes) {
+        ctx.beginPath();
+        ctx.arc(stroke.x, stroke.y, brushSize/2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
     ctx.restore();
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(10, canvas.height - 100, 400, 90);
+    ctx.fillRect(10, canvas.height - 120, 450, 110);
     ctx.fillStyle = 'lime';
     ctx.font = '14px monospace';
-    ctx.fillText('ROAD EDITOR MODE', 20, canvas.height - 80);
+    ctx.fillText('ROAD EDITOR MODE', 20, canvas.height - 100);
+    const modeColors = {road: 'yellow', water: 'cyan', forest: 'lightgreen'};
+    ctx.fillStyle = modeColors[brushMode];
+    ctx.fillText(`Brush: ${brushMode.toUpperCase()}`, 20, canvas.height - 80);
     ctx.fillStyle = 'white';
     ctx.font = '12px monospace';
-    ctx.fillText('Click map to add points', 20, canvas.height - 60);
-    ctx.fillText('C: Complete  X: Clear  Ctrl+Z: Undo', 20, canvas.height - 40);
-    ctx.fillText('P: Print  S: Clear saved  Ctrl+E: Exit', 20, canvas.height - 20);
+    ctx.fillText('1: Road  2: Water  3: Forest', 20, canvas.height - 60);
+    ctx.fillText('F: Finalize area  X: Clear  Ctrl+E: Exit', 20, canvas.height - 40);
+    ctx.fillText(`Brush size: ${brushSize}  Strokes: ${currentStrokes.length}`, 20, canvas.height - 20);
 }

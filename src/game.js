@@ -11,7 +11,7 @@ console.log('  • Toggle camera mode: X key');
 console.log('  • Spotlight: Hold mouse button');
 console.log('  • Ambient light: +/- keys');
 console.log('%cPerformance Tip:', 'font-weight: bold; color: orange;');
-console.log('  If running slow, disable browser JIT restrictions (e.g., Edge Super Duper Secure Mode)');
+console.log('  • If running slow, disable browser JIT restrictions (e.g., Edge Super Duper Secure Mode) for this site');
 
 
 const canvas = document.getElementById('game');

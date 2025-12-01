@@ -13,6 +13,8 @@ function draw() {
     } else {
         ctx.translate(-camera.x, -camera.y);
     }
+    
+    drawWater(ctx);
     drawRoads();
     ctx.restore();
 
