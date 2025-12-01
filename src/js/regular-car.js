@@ -26,7 +26,17 @@ function createRegularCar(x, y, color, followTarget = null) {
         // AI & APPEARANCE
         followTarget: followTarget,  // Target car to follow (for AI)
         color: color,                // Main car body color
-        lightColor: lightenColor(color)  // Lighter shade for windows
+        lightColor: lightenColor(color),  // Lighter shade for windows
+        turningLeft: false,
+        turningRight: false,
+        leftSignalTime: 0,
+        rightSignalTime: 0,
+        leftKeyPressStart: 0,
+        rightKeyPressStart: 0,
+        leftTapCount: 0,
+        rightTapCount: 0,
+        leftLastTap: 0,
+        rightLastTap: 0
     };
 }
 
@@ -71,6 +81,21 @@ function drawRegularCar(car, lightsEnabled = true) {
         ctx.fillStyle = '#ff0000';  // Tail light color (red)
         ctx.fillRect(-car.width / 2 + 2, -car.height / 2, 6, 3);  // Left tail light
         ctx.fillRect(car.width / 2 - 8, -car.height / 2, 6, 3);   // Right tail light
+    }
+    
+    // TURN SIGNALS
+    const now = Date.now();
+    const leftSignalOn = car.turningLeft && Math.floor((now - car.leftSignalTime) / 350) % 2 === 0;
+    const rightSignalOn = car.turningRight && Math.floor((now - car.rightSignalTime) / 350) % 2 === 0;
+    if (leftSignalOn) {
+        ctx.fillStyle = '#ff8800';
+        ctx.fillRect(-car.width / 2 + 2, car.height / 2 - 8, 6, 3);
+        ctx.fillRect(-car.width / 2 + 2, -car.height / 2 - 3, 6, 3);
+    }
+    if (rightSignalOn) {
+        ctx.fillStyle = '#ff8800';
+        ctx.fillRect(car.width / 2 - 8, car.height / 2 - 8, 6, 3);
+        ctx.fillRect(car.width / 2 - 8, -car.height / 2 - 3, 6, 3);
     }
     ctx.restore();
 
@@ -117,6 +142,41 @@ function drawRegularCar(car, lightsEnabled = true) {
             ctx.fill();
         }
         ctx.filter = 'none';
+        
+        // TURN SIGNAL GLOWS
+        const now = Date.now();
+        const leftSignalOn = car.turningLeft && Math.floor((now - car.leftSignalTime) / 350) % 2 === 0;
+        const rightSignalOn = car.turningRight && Math.floor((now - car.rightSignalTime) / 350) % 2 === 0;
+        
+        const frontLeftPos = {
+            x: car.x + cos * (car.height / 2 - 8) - sin * (car.width / 2 - 5),
+            y: car.y + sin * (car.height / 2 - 8) + cos * (car.width / 2 - 5)
+        };
+        const frontRightPos = {
+            x: car.x + cos * (car.height / 2 - 8) + sin * (car.width / 2 - 5),
+            y: car.y + sin * (car.height / 2 - 8) - cos * (car.width / 2 - 5)
+        };
+        
+        ctx.filter = 'blur(6px)';
+        if (leftSignalOn) {
+            ctx.fillStyle = 'rgba(255, 136, 0, 0.7)';
+            ctx.beginPath();
+            ctx.arc(tailLeftPos.x, tailLeftPos.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(frontLeftPos.x, frontLeftPos.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (rightSignalOn) {
+            ctx.fillStyle = 'rgba(255, 136, 0, 0.7)';
+            ctx.beginPath();
+            ctx.arc(tailRightPos.x, tailRightPos.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(frontRightPos.x, frontRightPos.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.filter = 'none';
     }
 
     ctx.globalCompositeOperation = 'source-over';
@@ -147,6 +207,64 @@ function updateRegularCar(car, otherCar) {
     if (Math.abs(car.speed) < 0.01) car.speed = 0;
 
     // STEERING (A/D keys - only works when moving)
+    const now = Date.now();
+    
+    if (keys['a']) {
+        if (car.rightKeyPressStart === 0) {
+            car.rightKeyPressStart = now;
+            if (now - car.rightLastTap < 500) {
+                car.rightTapCount++;
+                if (car.rightTapCount >= 2) {
+                    car.rightSignalTime = now;
+                    car.leftSignalTime = 0;
+                    car.rightTapCount = 0;
+                }
+            } else {
+                car.rightTapCount = 1;
+            }
+            car.rightLastTap = now;
+        }
+        if (car.rightSignalTime === 0 && now - car.rightKeyPressStart >= 250) {
+            car.rightSignalTime = now;
+            car.leftSignalTime = 0;
+        }
+    } else {
+        car.rightKeyPressStart = 0;
+    }
+    
+    if (keys['d']) {
+        if (car.leftKeyPressStart === 0) {
+            car.leftKeyPressStart = now;
+            if (now - car.leftLastTap < 500) {
+                car.leftTapCount++;
+                if (car.leftTapCount >= 2) {
+                    car.leftSignalTime = now;
+                    car.rightSignalTime = 0;
+                    car.leftTapCount = 0;
+                }
+            } else {
+                car.leftTapCount = 1;
+            }
+            car.leftLastTap = now;
+        }
+        if (car.leftSignalTime === 0 && now - car.leftKeyPressStart >= 250) {
+            car.leftSignalTime = now;
+            car.rightSignalTime = 0;
+        }
+    } else {
+        car.leftKeyPressStart = 0;
+    }
+    
+    if (car.leftSignalTime > 0 && now - car.leftSignalTime >= 1500 && !keys['d']) {
+        car.leftSignalTime = 0;
+    }
+    if (car.rightSignalTime > 0 && now - car.rightSignalTime >= 1500 && !keys['a']) {
+        car.rightSignalTime = 0;
+    }
+    
+    car.turningLeft = car.leftSignalTime > 0;
+    car.turningRight = car.rightSignalTime > 0;
+    
     if (keys['a']) car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
     if (keys['d']) car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
 

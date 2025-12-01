@@ -16,7 +16,7 @@ function createPoliceCar(x, y, followTarget = null) {
         prevSpeed: 0,            // Previous frame speed (for brake lights)
         maxSpeed: 5,             // Maximum normal speed (adjust for top speed)
         acceleration: 0.3,       // How fast car speeds up (adjust for responsiveness)
-        friction: 0.95,          // Speed decay when not accelerating (0.9=more drag, 0.99=less drag)
+        friction: 0.98,          // Speed decay when not accelerating (0.9=more drag, 0.99=less drag)
         turnSpeed: 0.05,         // How fast car turns (adjust for handling)
 
         // PHYSICS
@@ -30,7 +30,17 @@ function createPoliceCar(x, y, followTarget = null) {
         sirenSource: null,
         sirenGain: null,
         sirenOn: false,
-        sirenDelay: Math.random() * 300
+        sirenDelay: Math.random() * 300,
+        turningLeft: false,
+        turningRight: false,
+        leftSignalTime: 0,
+        rightSignalTime: 0,
+        leftKeyPressStart: 0,
+        rightKeyPressStart: 0,
+        leftTapCount: 0,
+        rightTapCount: 0,
+        leftLastTap: 0,
+        rightLastTap: 0
     };
 }
 
@@ -235,6 +245,27 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
         ctx.fillRect(-car.width / 2 + 2, -car.height / 2, 6, 3);  // Left tail light
         ctx.fillRect(car.width / 2 - 8, -car.height / 2, 6, 3);   // Right tail light
     }
+
+    // TURN SIGNALS (BLINKER POSITION ADJUSTMENT)
+    // To adjust blinker positions, modify the fillRect parameters below:
+    // fillRect(x, y, width, height) where:
+    //   - First value (x): left/right position (-car.width/2 = left side, car.width/2 = right side)
+    //   - Second value (y): front/back position (car.height/2 = front, -car.height/2 = back)
+    //   - Third value: blinker width
+    //   - Fourth value: blinker height
+    const now = Date.now();
+    const leftSignalOn = car.turningLeft && Math.floor((now - car.leftSignalTime) / 350) % 2 === 0;
+    const rightSignalOn = car.turningRight && Math.floor((now - car.rightSignalTime) / 350) % 2 === 0;
+    if (leftSignalOn) {
+        ctx.fillStyle = '#ff8800';
+        ctx.fillRect(-car.width / 2 + 0, car.height / 2 - 2, 6, 3);  // Right front blinker
+        ctx.fillRect(-car.width / 2 + 2, -car.height / 2, 4, 3);  // Right rear blinker
+    }
+    if (rightSignalOn) {
+        ctx.fillStyle = '#ff8800';
+        ctx.fillRect(car.width / 2 - 6, car.height / 2 - 2, 6, 3);  // Left front blinker
+        ctx.fillRect(car.width / 2 - 4, -car.height / 2, 4, 3);  // Left rear blinker
+    }
     ctx.restore();
 
     // TAIL LIGHT GLOW EFFECTS
@@ -289,6 +320,48 @@ function drawPoliceCar(car, lightsEnabled = true, allCars = []) {
                 ctx.arc(tailRightPos.x, tailRightPos.y, 8, 0, Math.PI * 2);
                 ctx.fill();
             }
+        }
+        ctx.filter = 'none';
+
+        // TURN SIGNAL GLOWS
+        const now = Date.now();
+        const leftSignalOn = car.turningLeft && Math.floor((now - car.leftSignalTime) / 350) % 2 === 0;
+        const rightSignalOn = car.turningRight && Math.floor((now - car.rightSignalTime) / 350) % 2 === 0;
+
+        const frontLeftPos = {
+            x: car.x + cos * (car.height / 2 - 2) - sin * (car.width / 2 - 3),
+            y: car.y + sin * (car.height / 2 - 2) + cos * (car.width / 2 - 3)
+        };
+        const frontRightPos = {
+            x: car.x + cos * (car.height / 2 - 2) + sin * (car.width / 2 - 3),
+            y: car.y + sin * (car.height / 2 - 2) - cos * (car.width / 2 - 3)
+        };
+
+        ctx.filter = 'blur(6px)';
+        if (leftSignalOn) {
+            ctx.fillStyle = 'rgba(255, 136, 0, 0.7)';
+            ctx.beginPath();
+            ctx.arc(tailLeftPos.x, tailLeftPos.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (rightSignalOn) {
+            ctx.fillStyle = 'rgba(255, 136, 0, 0.7)';
+            ctx.beginPath();
+            ctx.arc(tailRightPos.x, tailRightPos.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.filter = 'blur(3px)';
+        if (leftSignalOn) {
+            ctx.fillStyle = 'rgba(255, 136, 0, 0.4)';
+            ctx.beginPath();
+            ctx.arc(frontLeftPos.x, frontLeftPos.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (rightSignalOn) {
+            ctx.fillStyle = 'rgba(255, 136, 0, 0.4)';
+            ctx.beginPath();
+            ctx.arc(frontRightPos.x, frontRightPos.y, 5, 0, Math.PI * 2);
+            ctx.fill();
         }
         ctx.filter = 'none';
     }
@@ -431,7 +504,65 @@ function updatePoliceCar(car, otherCar) {
     // STEERING (A/D keys - only works when moving)
     const steerDirection = car.speed < 0 ? -1 : 1;
     const speedRatio = Math.abs(car.speed) / car.maxSpeed;
+
+    const now = Date.now();
+
+    if (keys['a']) {
+        if (car.rightKeyPressStart === 0) {
+            car.rightKeyPressStart = now;
+            if (now - car.rightLastTap < 500) {
+                car.rightTapCount++;
+                if (car.rightTapCount >= 2) {
+                    car.rightSignalTime = now;
+                    car.leftSignalTime = 0;
+                    car.rightTapCount = 0;
+                }
+            } else {
+                car.rightTapCount = 1;
+            }
+            car.rightLastTap = now;
+        }
+        if (car.rightSignalTime === 0 && now - car.rightKeyPressStart >= 250) {
+            car.rightSignalTime = now;
+            car.leftSignalTime = 0;
+        }
+    } else {
+        car.rightKeyPressStart = 0;
+    }
+
+    if (keys['d']) {
+        if (car.leftKeyPressStart === 0) {
+            car.leftKeyPressStart = now;
+            if (now - car.leftLastTap < 500) {
+                car.leftTapCount++;
+                if (car.leftTapCount >= 2) {
+                    car.leftSignalTime = now;
+                    car.rightSignalTime = 0;
+                    car.leftTapCount = 0;
+                }
+            } else {
+                car.leftTapCount = 1;
+            }
+            car.leftLastTap = now;
+        }
+        if (car.leftSignalTime === 0 && now - car.leftKeyPressStart >= 250) {
+            car.leftSignalTime = now;
+            car.rightSignalTime = 0;
+        }
+    } else {
+        car.leftKeyPressStart = 0;
+    }
+
+    if (car.leftSignalTime > 0 && now - car.leftSignalTime >= 1500 && !keys['d']) {
+        car.leftSignalTime = 0;
+    }
+    if (car.rightSignalTime > 0 && now - car.rightSignalTime >= 1500 && !keys['a']) {
+        car.rightSignalTime = 0;
+    }
     
+    car.turningLeft = car.leftSignalTime > 0;
+    car.turningRight = car.rightSignalTime > 0;
+
     if (keys['a'] || keys['d']) {
         car.steerHoldTime++;
         const dampening = speedRatio > 0.7 && car.steerHoldTime < 8 ? 0.3 : 1.0;
@@ -444,7 +575,7 @@ function updatePoliceCar(car, otherCar) {
     // POSITION UPDATE (movement + collision velocity)
     car.x += Math.cos(car.angle) * car.speed + car.vx;
     car.y += Math.sin(car.angle) * car.speed + car.vy;
-    
+
     // LANE ASSISTANCE (steering angle adjustment)
     const laneAssist = roadSystem.getLaneAssist(car);
     const isActivelySteering = keys['a'] || keys['d'];
