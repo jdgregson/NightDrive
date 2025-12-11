@@ -68,6 +68,47 @@ function checkCollision(carObj, otherCar) {
     const corners = getCarCorners(carObj, COLLISION_WIDTH_BUFFER, COLLISION_HEIGHT_BUFFER);
     const buffer = 500;
     const edgeBuffer = 3;
+    
+    const frontCorners = carObj.speed >= 0 ? [corners[1], corners[2]] : [corners[0], corners[3]];
+    
+    for (const corner of frontCorners) {
+        let cornerOnBridge = false;
+        for (const bridge of bridges) {
+            for (const c of bridge.crossings) {
+                const dx = corner.x - c.roadPt.x;
+                const dy = corner.y - c.roadPt.y;
+                const along = dx * Math.cos(c.angle) + dy * Math.sin(c.angle);
+                const across = -dx * Math.sin(c.angle) + dy * Math.cos(c.angle);
+                if (Math.abs(across) < 100 && Math.abs(along) < bridge.length / 2) {
+                    cornerOnBridge = true;
+                    break;
+                }
+            }
+            if (cornerOnBridge) break;
+        }
+        
+        if (!cornerOnBridge) {
+            for (const water of waterPaths) {
+                for (let i = 0; i < water.path.length - 1; i++) {
+                    const w1 = water.path[i];
+                    const w2 = water.path[i + 1];
+                    const dx = w2.x - w1.x;
+                    const dy = w2.y - w1.y;
+                    const len2 = dx * dx + dy * dy;
+                    if (len2 === 0) continue;
+                    let t = ((corner.x - w1.x) * dx + (corner.y - w1.y) * dy) / len2;
+                    t = Math.max(0, Math.min(1, t));
+                    const projX = w1.x + t * dx;
+                    const projY = w1.y + t * dy;
+                    const dist = Math.hypot(corner.x - projX, corner.y - projY);
+                    if (dist < water.width / 2) {
+                        profiler.end('collision_check');
+                        return true;
+                    }
+                }
+            }
+        }
+    }
 
     for (const obs of obstacles) {
         if (Math.abs(obs.x - carObj.x) > buffer || Math.abs(obs.y - carObj.y) > buffer) continue;
