@@ -1,5 +1,24 @@
+console.log('%c🚓 Night Drive - Police Car Simulator', 'font-size: 16px; font-weight: bold;');
+console.log('%cDebug Info:', 'font-weight: bold;');
+console.log('  • Enable profiler: profiler.enabled = true');
+console.log('%cControls:', 'font-weight: bold;');
+console.log('  • WASD to drive');
+console.log('  • SHIFT + W to drive fast');
+console.log('  • Toggle headlights: H key');
+console.log('  • Toggle police lights: L key');
+console.log('  • Toggle police sirens: K key');
+console.log('  • Toggle camera mode: X key');
+console.log('  • Spotlight: Hold mouse button');
+console.log('  • Ambient light: +/- keys');
+console.log('  • Map editor: Ctrl+E');
+console.log('%cPerformance Tip:', 'font-weight: bold; color: orange;');
+console.log('  • If running slow, disable browser JIT restrictions (e.g., Edge Super Duper Secure Mode) for this site');
+
 const playerCar = createPoliceCar(-5800, 4800);
 playerCar.angle = Math.PI / 2;
+playerCar.prevX = playerCar.x;
+playerCar.prevY = playerCar.y;
+playerCar.prevAngle = playerCar.angle;
 const aiCar = createPoliceCar(-150, 0);
 const aiCar2 = createPoliceCar(150, 150, playerCar);
 const regularCar = createRegularCar(-400, -300, '#1a4d8f', aiCar2);
@@ -161,23 +180,29 @@ function update() {
     }
     profiler.end('update_debris');
 
+    camera.x = car.x - canvas.width / 2;
+    camera.y = car.y - canvas.height / 2;
+    
     if (rotateWorld) {
         let angleDiff = car.angle - cameraAngle;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         cameraAngle += angleDiff * 0.1;
-        camera.x = car.x;
-        camera.y = car.y;
-    } else {
-        camera.x = car.x - canvas.width / 2;
-        camera.y = car.y - canvas.height / 2;
     }
 
     profiler.end('update_total');
 }
 
+let interpolationAlpha = 0;
+
 function gameLoop() {
+    playerCar.prevX = playerCar.x;
+    playerCar.prevY = playerCar.y;
+    playerCar.prevAngle = playerCar.angle;
+    
     update();
+    
+    interpolationAlpha = 0.5;
     draw();
     profiler.frame();
     requestAnimationFrame(gameLoop);

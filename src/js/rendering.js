@@ -1,6 +1,11 @@
 function draw() {
     profiler.start('draw_total');
 
+    const interpX = playerCar.prevX + (playerCar.x - playerCar.prevX) * interpolationAlpha;
+    const interpY = playerCar.prevY + (playerCar.y - playerCar.prevY) * interpolationAlpha;
+    camera.renderX = interpX - canvas.width / 2;
+    camera.renderY = interpY - canvas.height / 2;
+
     profiler.start('draw_terrain');
     drawTerrain();
     profiler.end('draw_terrain');
@@ -11,7 +16,7 @@ function draw() {
         ctx.rotate(-cameraAngle - Math.PI / 2);
         ctx.translate(-car.x, -car.y);
     } else {
-        ctx.translate(-camera.x, -camera.y);
+        ctx.translate(-camera.renderX, -camera.renderY);
     }
     
     drawWater(ctx);
@@ -30,7 +35,7 @@ function draw() {
         ctx.rotate(-cameraAngle - Math.PI / 2);
         ctx.translate(-car.x, -car.y);
     } else {
-        ctx.translate(-camera.x, -camera.y);
+        ctx.translate(-camera.renderX, -camera.renderY);
     }
 
     ctx.fillStyle = `rgba(40, 40, 50, ${Math.min(ambientLight * 10, 1)})`;
