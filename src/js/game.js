@@ -1,4 +1,4 @@
-const playerCar = createPoliceCar(15138, 14);
+const playerCar = createPoliceCar(-5800, 4800);
 playerCar.angle = Math.PI / 2;
 const aiCar = createPoliceCar(-150, 0);
 const aiCar2 = createPoliceCar(150, 150, playerCar);

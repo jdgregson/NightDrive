@@ -16,6 +16,7 @@ function draw() {
     
     drawWater(ctx);
     drawRoads();
+    drawBridges(ctx);
     ctx.restore();
 
     if (ambientLight > 0) {

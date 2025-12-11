@@ -369,9 +369,89 @@ function drawRoadMarkings() {
 }
 
 const waterPaths = [];
+const bridges = [];
 
 function addWaterPath(path, width) {
     waterPaths.push({path, width});
+}
+
+function detectBridges() {
+    bridges.length = 0;
+    for (const road of roadSystem.roads) {
+        if (!road.isPath || road.type !== 'TWO_LANE') continue;
+        
+        for (const water of waterPaths) {
+            const crossings = [];
+            for (const seg of road.segments) {
+                for (let t = 0; t <= 1; t += 0.02) {
+                    const roadPt = roadSystem.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                    const angle = roadSystem.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
+                    
+                    for (let i = 0; i < water.path.length - 1; i++) {
+                        const w1 = water.path[i];
+                        const w2 = water.path[i + 1];
+                        const dist = pointToSegmentDistance(roadPt.x, roadPt.y, w1.x, w1.y, w2.x, w2.y);
+                        
+                        if (dist < water.width / 2) {
+                            crossings.push({ roadPt, angle, t, seg });
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (crossings.length > 0) {
+                const groups = [];
+                let group = [crossings[0]];
+                for (let i = 1; i < crossings.length; i++) {
+                    const dist = Math.hypot(crossings[i].roadPt.x - crossings[i-1].roadPt.x, crossings[i].roadPt.y - crossings[i-1].roadPt.y);
+                    if (dist > 100) {
+                        groups.push(group);
+                        group = [crossings[i]];
+                    } else {
+                        group.push(crossings[i]);
+                    }
+                }
+                groups.push(group);
+                
+                for (const grp of groups) {
+                    const start = grp[0];
+                    const end = grp[grp.length - 1];
+                    const extension = 400;
+                    const extendedStart = {
+                        x: start.roadPt.x - Math.cos(start.angle) * extension,
+                        y: start.roadPt.y - Math.sin(start.angle) * extension
+                    };
+                    const extendedEnd = {
+                        x: end.roadPt.x + Math.cos(end.angle) * extension,
+                        y: end.roadPt.y + Math.sin(end.angle) * extension
+                    };
+                    
+                    bridges.push({
+                        road,
+                        start: extendedStart,
+                        end: extendedEnd,
+                        startAngle: start.angle,
+                        endAngle: end.angle,
+                        crossings: grp,
+                        length: Math.hypot(end.roadPt.x - start.roadPt.x, end.roadPt.y - start.roadPt.y) + extension * 2
+                    });
+                }
+            }
+        }
+    }
+}
+
+function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const projX = x1 + t * dx;
+    const projY = y1 + t * dy;
+    return Math.hypot(px - projX, py - projY);
 }
 
 function drawWater(ctx) {
@@ -386,6 +466,56 @@ function drawWater(ctx) {
         for (let i = 1; i < water.path.length; i++) {
             ctx.lineTo(water.path[i].x, water.path[i].y);
         }
+        ctx.stroke();
+    }
+}
+
+function drawBridges(ctx) {
+    if (!bridges || bridges.length === 0) return;
+    
+    for (const bridge of bridges) {
+        if (!bridge.crossings || bridge.crossings.length === 0) continue;
+        
+        const hw = 100;
+        
+        // Concrete deck
+        ctx.fillStyle = '#6b6b6b';
+        ctx.strokeStyle = '#4a4a4a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(bridge.start.x - Math.cos(bridge.startAngle + Math.PI / 2) * hw, bridge.start.y - Math.sin(bridge.startAngle + Math.PI / 2) * hw);
+        for (const c of bridge.crossings) {
+            const perp = c.angle + Math.PI / 2;
+            ctx.lineTo(c.roadPt.x - Math.cos(perp) * hw, c.roadPt.y - Math.sin(perp) * hw);
+        }
+        ctx.lineTo(bridge.end.x - Math.cos(bridge.endAngle + Math.PI / 2) * hw, bridge.end.y - Math.sin(bridge.endAngle + Math.PI / 2) * hw);
+        ctx.lineTo(bridge.end.x + Math.cos(bridge.endAngle + Math.PI / 2) * hw, bridge.end.y + Math.sin(bridge.endAngle + Math.PI / 2) * hw);
+        for (let i = bridge.crossings.length - 1; i >= 0; i--) {
+            const c = bridge.crossings[i];
+            const perp = c.angle + Math.PI / 2;
+            ctx.lineTo(c.roadPt.x + Math.cos(perp) * hw, c.roadPt.y + Math.sin(perp) * hw);
+        }
+        ctx.lineTo(bridge.start.x + Math.cos(bridge.startAngle + Math.PI / 2) * hw, bridge.start.y + Math.sin(bridge.startAngle + Math.PI / 2) * hw);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Railings
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(bridge.start.x - Math.cos(bridge.startAngle + Math.PI / 2) * hw, bridge.start.y - Math.sin(bridge.startAngle + Math.PI / 2) * hw);
+        for (const c of bridge.crossings) {
+            ctx.lineTo(c.roadPt.x - Math.cos(c.angle + Math.PI / 2) * hw, c.roadPt.y - Math.sin(c.angle + Math.PI / 2) * hw);
+        }
+        ctx.lineTo(bridge.end.x - Math.cos(bridge.endAngle + Math.PI / 2) * hw, bridge.end.y - Math.sin(bridge.endAngle + Math.PI / 2) * hw);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(bridge.start.x + Math.cos(bridge.startAngle + Math.PI / 2) * hw, bridge.start.y + Math.sin(bridge.startAngle + Math.PI / 2) * hw);
+        for (const c of bridge.crossings) {
+            ctx.lineTo(c.roadPt.x + Math.cos(c.angle + Math.PI / 2) * hw, c.roadPt.y + Math.sin(c.angle + Math.PI / 2) * hw);
+        }
+        ctx.lineTo(bridge.end.x + Math.cos(bridge.endAngle + Math.PI / 2) * hw, bridge.end.y + Math.sin(bridge.endAngle + Math.PI / 2) * hw);
         ctx.stroke();
     }
 }
