@@ -1166,7 +1166,7 @@ class RoadSystem {
 
         // Find intersections that involve this road
         const roadIntersections = this.intersections.filter(i => i.roads.includes(road));
-        
+
         // Also check for nearby intersections
         const nearbyIntersections = this.intersections.filter(i => {
             if (i.roads.includes(road)) return false;

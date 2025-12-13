@@ -29,7 +29,7 @@ function isValidBuildingPlacement(x, y, width, height) {
         { x: x - margin, y: y + height / 2 },
         { x: x + width + margin, y: y + height / 2 }
     ];
-    
+
     for (const point of points) {
         if (roadSystem.isOnRoad(point.x, point.y).onRoad) {
             return false;
@@ -46,13 +46,13 @@ function generateBuildingsInBlock(minX, maxX, minY, maxY, seed) {
     const minSize = 180;
     const availW = maxX - minX - margin * 2;
     const availH = maxY - minY - margin * 2;
-    
+
     for (let i = 0; i < 12; i++) {
         const w = minSize + rng(i * 4) * 150;
         const h = minSize + rng(i * 4 + 1) * 150;
         const edge = Math.floor(rng(i * 4 + 2) * 4);
         let x, y;
-        
+
         if (edge === 0) {
             x = minX + margin;
             y = minY + margin + rng(i * 4 + 3) * (availH - h);
@@ -66,11 +66,11 @@ function generateBuildingsInBlock(minX, maxX, minY, maxY, seed) {
             x = minX + margin + rng(i * 4 + 3) * (availW - w);
             y = maxY - margin - h;
         }
-        
+
         if (isValidBuildingPlacement(x, y, w, h)) {
             let overlaps = false;
             for (const b of buildings) {
-                if (!(x + w + spacing < b.x || x > b.x + b.width + spacing || 
+                if (!(x + w + spacing < b.x || x > b.x + b.width + spacing ||
                       y + h + spacing < b.y || y > b.y + b.height + spacing)) {
                     overlaps = true;
                     break;
@@ -85,7 +85,7 @@ function generateBuildingsInBlock(minX, maxX, minY, maxY, seed) {
 function generateWorld() {
     obstacles.length = 0;
     interactiveObjects.length = 0;
-    
+
     for (let bx = -1800; bx <= 9000; bx += 1200) {
         for (let by = -1800; by <= 9000; by += 1200) {
             obstacles.push(...generateBuildingsInBlock(
@@ -93,7 +93,7 @@ function generateWorld() {
             ));
         }
     }
-    
+
     // Mailboxes and trash cans on sidewalks
     for (let rx = -1200; rx <= 9600; rx += 1200) {
         for (let ry = -1200; ry <= 9600; ry += 1200) {
@@ -114,7 +114,7 @@ function generateWorld() {
 
 function drawFullMap() {
     let minX, maxX, minY, maxY;
-    
+
     if (editorMode) {
         minX = -15000;
         maxX = 25000;
@@ -125,7 +125,7 @@ function drawFullMap() {
         maxX = -Infinity;
         minY = Infinity;
         maxY = -Infinity;
-        
+
         for (const road of roadSystem.roads) {
             if (road.isCurved) {
                 minX = Math.min(minX, road.centerX - road.radius);
@@ -153,7 +153,7 @@ function drawFullMap() {
             maxY = Math.max(maxY, building.y + building.height);
         }
     }
-    
+
     const worldWidth = maxX - minX;
     const worldHeight = maxY - minY;
     const padding = 50;
@@ -163,10 +163,10 @@ function drawFullMap() {
     );
     const offsetX = (canvas.width - worldWidth * scale) / 2 - minX * scale;
     const offsetY = (canvas.height - worldHeight * scale) / 2 - minY * scale;
-    
+
     ctx.fillStyle = 'rgba(10, 15, 20, 0.95)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+
     ctx.strokeStyle = 'rgb(0, 100, 255)';
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -179,7 +179,7 @@ function drawFullMap() {
         }
         ctx.stroke();
     }
-    
+
     ctx.fillStyle = '#666';
     for (const building of obstacles) {
         ctx.fillRect(
@@ -189,7 +189,7 @@ function drawFullMap() {
             building.height * scale
         );
     }
-    
+
     ctx.lineWidth = 2;
     for (const road of roadSystem.roads) {
         if (road.isCurved) {
@@ -222,7 +222,7 @@ function drawFullMap() {
             ctx.stroke();
         }
     }
-    
+
     ctx.fillStyle = '#ff0000';
     ctx.beginPath();
     ctx.arc(
@@ -231,7 +231,7 @@ function drawFullMap() {
         5, 0, Math.PI * 2
     );
     ctx.fill();
-    
+
     ctx.fillStyle = '#ffffff';
     ctx.font = '20px sans-serif';
     ctx.fillText('Hold M to view map', canvas.width / 2 - 90, 30);
@@ -243,18 +243,18 @@ function drawMinimap() {
     const minimapY = 20;
     const viewRadius = 1500;
     const scale = minimapSize / (viewRadius * 2);
-    
+
     ctx.save();
-    
+
     // Solid background
     ctx.fillStyle = 'rgba(20, 25, 30, 0.9)';
     ctx.fillRect(minimapX, minimapY, minimapSize, minimapSize);
-    
+
     // Clip to minimap bounds
     ctx.beginPath();
     ctx.rect(minimapX, minimapY, minimapSize, minimapSize);
     ctx.clip();
-    
+
     // Draw water
     ctx.strokeStyle = 'rgb(0, 100, 255)';
     ctx.lineCap = 'round';
@@ -274,7 +274,7 @@ function drawMinimap() {
         }
         ctx.stroke();
     }
-    
+
     // Draw buildings
     ctx.fillStyle = '#666';
     for (const building of obstacles) {
@@ -285,7 +285,7 @@ function drawMinimap() {
             building.height * scale
         );
     }
-    
+
     // Draw roads centered on player
     for (const road of roadSystem.roads) {
         if (road.isCurved) {
@@ -336,7 +336,7 @@ function drawMinimap() {
             ctx.stroke();
         }
     }
-    
+
     // Player at center
     ctx.fillStyle = '#ff0000';
     ctx.beginPath();
@@ -346,9 +346,9 @@ function drawMinimap() {
         4, 0, Math.PI * 2
     );
     ctx.fill();
-    
+
     ctx.restore();
-    
+
     // Border (drawn after restore to avoid clipping)
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
@@ -379,19 +379,19 @@ function detectBridges() {
     bridges.length = 0;
     for (const road of roadSystem.roads) {
         if (!road.isPath || road.type !== 'TWO_LANE') continue;
-        
+
         for (const water of waterPaths) {
             const crossings = [];
             for (const seg of road.segments) {
                 for (let t = 0; t <= 1; t += 0.02) {
                     const roadPt = roadSystem.bezierPoint(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
                     const angle = roadSystem.bezierTangent(seg.p1, seg.cp1, seg.cp2, seg.p2, t);
-                    
+
                     for (let i = 0; i < water.path.length - 1; i++) {
                         const w1 = water.path[i];
                         const w2 = water.path[i + 1];
                         const dist = pointToSegmentDistance(roadPt.x, roadPt.y, w1.x, w1.y, w2.x, w2.y);
-                        
+
                         if (dist < water.width / 2) {
                             crossings.push({ roadPt, angle, t, seg });
                             break;
@@ -399,7 +399,7 @@ function detectBridges() {
                     }
                 }
             }
-            
+
             if (crossings.length > 0) {
                 const groups = [];
                 let group = [crossings[0]];
@@ -413,7 +413,7 @@ function detectBridges() {
                     }
                 }
                 groups.push(group);
-                
+
                 for (const grp of groups) {
                     const start = grp[0];
                     const end = grp[grp.length - 1];
@@ -426,7 +426,7 @@ function detectBridges() {
                         x: end.roadPt.x + Math.cos(end.angle) * extension,
                         y: end.roadPt.y + Math.sin(end.angle) * extension
                     };
-                    
+
                     bridges.push({
                         road,
                         start: extendedStart,
@@ -472,12 +472,12 @@ function drawWater(ctx) {
 
 function drawBridges(ctx) {
     if (!bridges || bridges.length === 0) return;
-    
+
     for (const bridge of bridges) {
         if (!bridge.crossings || bridge.crossings.length === 0) continue;
-        
+
         const hw = 100;
-        
+
         // Concrete deck
         ctx.fillStyle = '#6b6b6b';
         ctx.strokeStyle = '#4a4a4a';
@@ -499,7 +499,7 @@ function drawBridges(ctx) {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        
+
         // Railings
         ctx.strokeStyle = '#888';
         ctx.lineWidth = 4;

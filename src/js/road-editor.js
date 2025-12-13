@@ -130,14 +130,58 @@ window.addEventListener('keydown', e => {
             console.log('Brush mode: FOREST');
         }
         if (e.key.toLowerCase() === 'f') {
-            if (currentStrokes.length > 0) {
+            if (brushMode === 'road') {
+                if (currentPath.length > 1) {
+                    if (editorMergePoint) {
+                        const tj = editorMergePoint;
+                        const secondPt = currentPath[1] || currentPath[0];
+                        const dx = Math.abs(secondPt.x - tj.x);
+                        const dy = Math.abs(secondPt.y - tj.y);
+                        const isVertical = dy > dx;
+                        
+                        let mergeEnd, offset;
+                        if (isVertical) {
+                            offset = tj.y === -2400 ? -2400 : 2400;
+                            mergeEnd = {x: tj.x, y: tj.y + offset};
+                        } else {
+                            offset = tj.x === -2400 ? -2400 : 2400;
+                            mergeEnd = {x: tj.x + offset, y: tj.y};
+                        }
+                        console.log(`    roadSystem.addMerge(${tj.x}, ${tj.y}, ${mergeEnd.x}, ${mergeEnd.y}, 'FOUR_LANE', 'TWO_LANE');`);
+                        
+                        let firstValidIdx = 1;
+                        for (let i = 1; i < currentPath.length; i++) {
+                            const pt = currentPath[i];
+                            const pastMerge = isVertical ? 
+                                (offset > 0 ? pt.y > mergeEnd.y : pt.y < mergeEnd.y) :
+                                (offset > 0 ? pt.x > mergeEnd.x : pt.x < mergeEnd.x);
+                            if (pastMerge) {
+                                firstValidIdx = i;
+                                break;
+                            }
+                        }
+                        
+                        const snappedPath = [{x: mergeEnd.x, y: mergeEnd.y}, ...currentPath.slice(firstValidIdx)];
+                        console.log(`    roadSystem.addPath(${JSON.stringify(snappedPath)}, 'TWO_LANE');`);
+                    } else {
+                        console.log(`    roadSystem.addPath(${JSON.stringify(currentPath)}, 'TWO_LANE');`);
+                    }
+                    
+                    currentPath = [];
+                    editorMergePoint = null;
+                }
+            } else if (currentStrokes.length > 0) {
                 const simplified = [];
                 for (let i = 0; i < currentStrokes.length; i += 3) {
                     simplified.push({x: Math.round(currentStrokes[i].x), y: Math.round(currentStrokes[i].y)});
                 }
-                console.log(`${brushMode === 'water' ? 'Water' : 'Forest'} path:`);
-                console.log(`  width: ${brushSize}`);
-                console.log(`  path: ${JSON.stringify(simplified)}`);
+                if (brushMode === 'water') {
+                    console.log(`addWaterPath(${JSON.stringify(simplified)}, ${brushSize});`);
+                } else {
+                    console.log(`// Forest path:`);
+                    console.log(`//   width: ${brushSize}`);
+                    console.log(`//   path: ${JSON.stringify(simplified)}`);
+                }
                 currentStrokes = [];
             }
         }
@@ -174,7 +218,7 @@ function handleEditorClick(e) {
     
     let nearJunction = null;
     for (const tj of tJunctions) {
-        const dist = Math.hypot(worldX - tj.x, worldY - tj.y);
+        const dist = Math.hypot(world.x - tj.x, world.y - tj.y);
         if (dist < 600) {
             nearJunction = tj;
             break;
@@ -189,8 +233,8 @@ function handleEditorClick(e) {
         currentPath.push({x: nearJunction.x, y: nearJunction.y});
         console.log(`Point added (T-junction): {x:${nearJunction.x}, y:${nearJunction.y}}`);
     } else {
-        currentPath.push({x: worldX, y: worldY});
-        console.log(`Point added: {x:${worldX}, y:${worldY}}`);
+        currentPath.push({x: world.x, y: world.y});
+        console.log(`Point added: {x:${world.x}, y:${world.y}}`);
     }
 }
 
@@ -308,6 +352,6 @@ function drawEditorOverlay(ctx) {
     ctx.fillStyle = 'white';
     ctx.font = '12px monospace';
     ctx.fillText('1: Road  2: Water  3: Forest', 20, canvas.height - 60);
-    ctx.fillText('F: Finalize area  X: Clear  Ctrl+E: Exit', 20, canvas.height - 40);
+    ctx.fillText('C/F: Finalize  X: Clear  P: Print all  Ctrl+E: Exit', 20, canvas.height - 40);
     ctx.fillText(`Brush size: ${brushSize}  Strokes: ${currentStrokes.length}`, 20, canvas.height - 20);
 }
